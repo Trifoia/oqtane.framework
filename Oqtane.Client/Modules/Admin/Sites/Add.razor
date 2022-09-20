@@ -29,7 +29,7 @@ else
                 </div>
             </div>
             <div class="row mb-1 align-items-center">
-                <Label Class="col-sm-3" For="alias" HelpText="Enter the aliases for the site. An alias can be a domain name (www.site.com) or a virtual folder (ie. www.site.com/folder). If a site has multiple aliases they can be separated by commas." ResourceKey="Aliases">Aliases: </Label>
+                <Label Class="col-sm-3" For="alias" HelpText="Enter the aliases for the site. An alias can be a domain name (www.site.com) or a virtual folder (ie. www.site.com/folder)." ResourceKey="Aliases">Aliases: </Label>
                 <div class="col-sm-9">
                     <textarea id="alias" class="form-control" @bind="@_urls" rows="3" required></textarea>
                 </div>
@@ -89,7 +89,8 @@ else
                     <select id="runtime" class="form-select" @bind="@_runtime" required>
                         <option value="Server">@SharedLocalizer["BlazorServer"]</option>
                         <option value="WebAssembly">@SharedLocalizer["BlazorWebAssembly"]</option>
-                    </select>
+						<option value="Hybrid">@SharedLocalizer["BlazorHybrid"]</option>
+					</select>
                 </div>
             </div>
             <div class="row mb-1 align-items-center">
@@ -128,25 +129,43 @@ else
                 <div class="row mb-1 align-items-center">
                     <Label Class="col-sm-3" For="databaseType" HelpText="Select the database type for the tenant" ResourceKey="DatabaseType">Database Type: </Label>
                     <div class="col-sm-9">
-                        <select id="databaseType" class="form-select" value="@_databaseName" @onchange="(e => DatabaseChanged(e))" required>
-                            @foreach (var database in _databases)
-                            {
-                                if (database.IsDefault)
-                                {
-                                    <option value="@database.Name" selected>@Localizer[@database.Name]</option>
-                                }
-                                else
-                                {
-                                    <option value="@database.Name">@Localizer[@database.Name]</option>
-                                }
-                            }
-                        </select>
-                    </div>
+                        @if (_databases != null)
+						{
+							<div class="input-group">
+								<select id="databaseType" class="form-select" value="@_databaseName" @onchange="(e => DatabaseChanged(e))" required>
+									@foreach (var database in _databases)
+									{
+										<option value="@database.Name">@Localizer[@database.Name]</option>
+									}
+								</select>
+								@if (!_showConnectionString)
+								{
+									<button type="button" class="btn btn-secondary" @onclick="ToggleConnectionString">@Localizer["EnterConnectionString"]</button>
+								}
+								else
+								{
+									<button type="button" class="btn btn-secondary" @onclick="ToggleConnectionString">@Localizer["EnterConnectionParameters"]</button>
+								}
+							</div>
+						}
+					</div>
                 </div>
-                if (_databaseConfigType != null)
-                {
-                    @DatabaseConfigComponent;
-                }
+				@if (!_showConnectionString)
+				{
+					if (_databaseConfigType != null)
+					{
+						@DatabaseConfigComponent
+					}
+				}
+				else
+				{
+					<div class="row mb-1 align-items-center">
+						<Label Class="col-sm-3" For="connectionstring" HelpText="Enter a complete connection string including all parameters and delimiters" ResourceKey="ConnectionString">String:</Label>
+						<div class="col-sm-9">
+							<textarea id="connectionstring" class="form-control" @bind="@_connectionString" rows="3"></textarea>
+						</div>
+					</div>
+				}
                 <div class="row mb-1 align-items-center">
                     <Label Class="col-sm-3" For="hostUsername" HelpText="Enter the username of an existing host user" ResourceKey="HostUsername">Host Username:</Label>
                     <div class="col-sm-9">
@@ -172,11 +191,12 @@ else
 	private List<Database> _databases;
 	private ElementReference form;
 	private bool validated = false;
-	private string _databaseName = "LocalDB";
+	private string _databaseName;
 	private Type _databaseConfigType;
 	private object _databaseConfig;
 	private RenderFragment DatabaseConfigComponent { get; set; }
-
+	private bool _showConnectionString = false;
+	private string _connectionString = string.Empty;
 
 	private List<Theme> _themeList;
 	private List<ThemeControl> _themes = new List<ThemeControl>();
@@ -208,7 +228,16 @@ else
 		_themeList = await ThemeService.GetThemesAsync();
 		_themes = ThemeService.GetThemeControls(_themeList);
 		_siteTemplates = await SiteTemplateService.GetSiteTemplatesAsync();
+
 		_databases = await DatabaseService.GetDatabasesAsync();
+		if (_databases.Exists(item => item.IsDefault))
+		{
+			_databaseName = _databases.Find(item => item.IsDefault).Name;
+		}
+		else
+		{
+			_databaseName = "LocalDB";
+		}
 		LoadDatabaseConfigComponent();
 	}
 
@@ -217,7 +246,7 @@ else
 		try
 		{
 			_databaseName = (string)eventArgs.Value;
-
+			_showConnectionString = false;
 			LoadDatabaseConfigComponent();
 		}
 		catch
@@ -308,15 +337,22 @@ else
 							user.Username = _hostusername;
 							user.Password = _hostpassword;
 							user.LastIPAddress = PageState.RemoteIPAddress;
-							user = await UserService.LoginUserAsync(user);
+							user = await UserService.LoginUserAsync(user, false, false);
                             if (user.IsAuthenticated)
                             {
-                                var connectionString = String.Empty;
-                                if (_databaseConfig is IDatabaseConfigControl databaseConfigControl)
-                                {
-                                    connectionString = databaseConfigControl.GetConnectionString();
-                                }
-                                var database = _databases.SingleOrDefault(d => d.Name == _databaseName);
+								var database = _databases.SingleOrDefault(d => d.Name == _databaseName);
+								var connectionString = String.Empty;
+								if (_showConnectionString)
+								{
+									connectionString = _connectionString;
+								}
+								else
+								{
+									if (_databaseConfig is IDatabaseConfigControl databaseConfigControl)
+									{
+										connectionString = databaseConfigControl.GetConnectionString();
+									}
+								}
 
                                 if (connectionString != "")
                                 {
@@ -397,4 +433,13 @@ else
             AddModuleMessage(SharedLocalizer["Message.InfoRequired"], MessageType.Warning);
         }
     }
+
+	private void ToggleConnectionString()
+	{
+		if (_databaseConfig is IDatabaseConfigControl databaseConfigControl)
+		{
+			_connectionString = databaseConfigControl.GetConnectionString();
+		}
+		_showConnectionString = !_showConnectionString;
+	}
 }

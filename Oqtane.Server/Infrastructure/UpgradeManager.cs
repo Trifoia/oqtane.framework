@@ -1,7 +1,5 @@
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Newtonsoft.Json;
 using Oqtane.Extensions;
 using Oqtane.Models;
 using Oqtane.Repository;
@@ -49,6 +47,15 @@ namespace Oqtane.Infrastructure
                         break;
                     case "3.0.1":
                         Upgrade_3_0_1(tenant, scope);
+                        break;
+                    case "3.1.3":
+                        Upgrade_3_1_3(tenant, scope);
+                        break;
+                    case "3.1.4":
+                        Upgrade_3_1_4(tenant, scope);
+                        break;
+                    case "3.2.0":
+                        Upgrade_3_2_0(tenant, scope);
                         break;
                 }
             }
@@ -136,7 +143,7 @@ namespace Oqtane.Infrastructure
                 {
                     new PageTemplateModule
                     {
-                        ModuleDefinitionName = typeof(Oqtane.Modules.Admin.UrlMappings.Index).ToModuleDefinitionName(), Title = "Url Mappings", Pane = PaneNames.Admin,
+                        ModuleDefinitionName = typeof(Oqtane.Modules.Admin.UrlMappings.Index).ToModuleDefinitionName(), Title = "Url Mappings", Pane = PaneNames.Default,
                         ModulePermissions = new List<Permission>
                         {
                             new Permission(PermissionNames.View, RoleNames.Admin, true),
@@ -165,7 +172,7 @@ namespace Oqtane.Infrastructure
                 {
                     new PageTemplateModule
                     {
-                        ModuleDefinitionName = typeof(Oqtane.Modules.Admin.Visitors.Index).ToModuleDefinitionName(), Title = "Visitor Management", Pane = PaneNames.Admin,
+                        ModuleDefinitionName = typeof(Oqtane.Modules.Admin.Visitors.Index).ToModuleDefinitionName(), Title = "Visitor Management", Pane = PaneNames.Default,
                         ModulePermissions = new List<Permission>
                         {
                             new Permission(PermissionNames.View, RoleNames.Admin, true),
@@ -182,5 +189,80 @@ namespace Oqtane.Infrastructure
                 sites.CreatePages(site, pageTemplates);
             }
         }
+
+        private void Upgrade_3_1_3(Tenant tenant, IServiceScope scope)
+        {
+            var roles = scope.ServiceProvider.GetRequiredService<IRoleRepository>();
+            if (!roles.GetRoles(-1, true).ToList().Where(item => item.Name == RoleNames.Unauthenticated).Any())
+            {
+                roles.AddRole(new Role { SiteId = null, Name = RoleNames.Unauthenticated, Description = RoleNames.Unauthenticated, IsAutoAssigned = false, IsSystem = true });
+            }
+        }
+
+        private void Upgrade_3_1_4(Tenant tenant, IServiceScope scope)
+        {
+            var pageTemplates = new List<PageTemplate>();
+
+            pageTemplates.Add(new PageTemplate
+            {
+                Name = "Not Found",
+                Parent = "",
+                Path = "404",
+                Icon = Icons.X,
+                IsNavigation = false,
+                IsPersonalizable = false,
+                PagePermissions = new List<Permission>
+                {
+                    new Permission(PermissionNames.View, RoleNames.Everyone, true),
+                    new Permission(PermissionNames.View, RoleNames.Admin, true),
+                    new Permission(PermissionNames.Edit, RoleNames.Admin, true)
+                }.EncodePermissions(),
+                PageTemplateModules = new List<PageTemplateModule>
+                {
+                    new PageTemplateModule { ModuleDefinitionName = "Oqtane.Modules.HtmlText, Oqtane.Client", Title = "Not Found", Pane = PaneNames.Default,
+                        ModulePermissions = new List<Permission> {
+                            new Permission(PermissionNames.View, RoleNames.Everyone, true),
+                            new Permission(PermissionNames.View, RoleNames.Admin, true),
+                            new Permission(PermissionNames.Edit, RoleNames.Admin, true)
+                        }.EncodePermissions(),
+                        Content = "<p>The page you requested does not exist.</p>"
+                    }
+                }
+            });
+
+            var pages = scope.ServiceProvider.GetRequiredService<IPageRepository>();
+
+            var sites = scope.ServiceProvider.GetRequiredService<ISiteRepository>();
+            foreach (Site site in sites.GetSites().ToList())
+            {
+                if (!pages.GetPages(site.SiteId).ToList().Where(item => item.Path == "404").Any())
+                {
+                    sites.CreatePages(site, pageTemplates);
+                }
+            }
+        }
+
+        private void Upgrade_3_2_0(Tenant tenant, IServiceScope scope)
+        {
+            try
+            {
+                // convert folder paths to cross platform format
+                var siteRepository = scope.ServiceProvider.GetRequiredService<ISiteRepository>();
+                var folderRepository = scope.ServiceProvider.GetRequiredService<IFolderRepository>();
+                foreach (Site site in siteRepository.GetSites().ToList())
+                {
+                    foreach (Folder folder in folderRepository.GetFolders(site.SiteId).ToList())
+                    {
+                        folder.Path = folder.Path.Replace("\\", "/");
+                        folderRepository.UpdateFolder(folder);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Oqtane Error: Error In 3.2.0 Upgrade Logic - {ex}");
+            }
+        }
+
     }
 }

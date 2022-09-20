@@ -142,7 +142,7 @@
     <value>Site Settings Saved</value>
   </data>
   <data name="Message.Aliases.Taken" xml:space="preserve">
-    <value>The Default Alias Has Not Been Specified Or An Alias Was Specified That Has Already Been Used For Another Site</value>
+    <value>An Alias Was Specified That Has Already Been Used For Another Site</value>
   </data>
   <data name="Message.Required.SiteName" xml:space="preserve">
     <value>You Must Provide A Site Name, Alias, And Default Theme/Container</value>
@@ -166,7 +166,7 @@
     <value>Enter the tenant for the site</value>
   </data>
   <data name="Aliases.HelpText" xml:space="preserve">
-    <value>The aliases for the site. An alias can be a domain name (www.site.com) or a virtual folder (ie. www.site.com/folder). If a site has multiple aliases they should be separated by commas.</value>
+    <value>The aliases for the site. An alias can be a domain name (www.site.com) or a virtual folder (ie. www.site.com/folder).</value>
   </data>
   <data name="IsDeleted.HelpText" xml:space="preserve">
     <value>Is this site deleted?</value>
@@ -323,5 +323,20 @@
   </data>
   <data name="Aliases.Heading" xml:space="preserve">
     <value>Aliases</value>
+  </data>
+  <data name="AliasName" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="AliasDefault" xml:space="preserve">
+    <value>Default?</value>
+  </data>
+  <data name="Confirm.Alias.Delete" xml:space="preserve">
+    <value>Are You Sure You Wish To Delete {0}?</value>
+  </data>
+  <data name="HomePage.HelpText" xml:space="preserve">
+    <value>Select the home page for the site (to be used if there is no page with a path of '/')</value>
+  </data>
+  <data name="HomePage.Text" xml:space="preserve">
+    <value>Home Page:</value>
   </data>
 </root>
