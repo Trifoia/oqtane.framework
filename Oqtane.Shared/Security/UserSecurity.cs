@@ -104,16 +104,29 @@ namespace Oqtane.Security
 
         private static bool IsAllowed(int userId, string roles, string permission)
         {
+            if (permission == RoleNames.Unauthenticated)
+            {
+                return userId == -1;
+            }
             if ("[" + userId + "]" == permission)
             {
                 return true;
             }
-
             if (roles != null)
             {
                 return roles.IndexOf(";" + permission + ";") != -1;
             }
             return false;
+        }
+
+        public static bool ContainsRole(string permissionStrings, string permissionName, string roleName)
+        {
+            return GetPermissionStrings(permissionStrings).FirstOrDefault(item => item.PermissionName == permissionName).Permissions.Split(';').Contains(roleName);
+        }
+
+        public static bool ContainsUser(string permissionStrings, string permissionName, int userId)
+        {
+            return GetPermissionStrings(permissionStrings).FirstOrDefault(item => item.PermissionName == permissionName).Permissions.Split(';').Contains($"[{userId}]");
         }
 
         public static ClaimsIdentity CreateClaimsIdentity(Alias alias, User user, List<UserRole> userroles)
