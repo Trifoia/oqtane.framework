@@ -1,12 +1,15 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Oqtane.Models
 {
     /// <summary>
     /// Describes a Folder in Oqtane
     /// </summary>
-    public class Folder : IAuditable
+    public class Folder : ModelBase
     {
         /// <summary>
         /// ID to identify the folder
@@ -59,35 +62,16 @@ namespace Oqtane.Models
         /// </summary>
         public bool IsSystem { get; set; }
 
-        #region IAuditable Properties
-
-        /// <inheritdoc />
-        public string CreatedBy { get; set; }
-
-        /// <inheritdoc />
-        public DateTime CreatedOn { get; set; }
-
-        /// <inheritdoc />
-        public string ModifiedBy { get; set; }
-
-        /// <inheritdoc />
-        public DateTime ModifiedOn { get; set; }
-
-        #endregion
-
-        #region Extended IAuditable Properties, may be moved to an Interface some day so not documented yet
-
-        public string DeletedBy { get; set; }
-        public DateTime? DeletedOn { get; set; }
-        public bool IsDeleted { get; set; }
-        
-        #endregion
+        /// <summary>
+        /// Deprecated - not used
+        /// </summary>
+        public bool? IsDeleted { get; set; }
 
         /// <summary>
         /// TODO: todoc what would this contain?
         /// </summary>
         [NotMapped]
-        public string Permissions { get; set; }
+        public List<Permission> PermissionList { get; set; }
 
         /// <summary>
         /// Folder Depth
@@ -101,5 +85,20 @@ namespace Oqtane.Models
         /// </summary>
         [NotMapped]
         public bool HasChildren { get; set; }
+
+        #region Deprecated Properties
+
+        [Obsolete("The Permissions property is deprecated. Use PermissionList instead", false)]
+        [NotMapped]
+        [JsonIgnore] // exclude from API payload
+        public string Permissions
+        {
+            get
+            {
+                return JsonSerializer.Serialize(PermissionList);
+            }
+        }
+
+        #endregion
     }
 }

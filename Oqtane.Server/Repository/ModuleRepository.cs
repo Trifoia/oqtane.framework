@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Oqtane.Extensions;
 using Oqtane.Models;
 using Oqtane.Modules;
 using Oqtane.Shared;
@@ -37,7 +38,7 @@ namespace Oqtane.Repository
         {
             _db.Module.Add(module);
             _db.SaveChanges();
-            _permissions.UpdatePermissions(module.SiteId, EntityNames.Module, module.ModuleId, module.Permissions);
+            _permissions.UpdatePermissions(module.SiteId, EntityNames.Module, module.ModuleId, module.PermissionList);
             return module;
         }
 
@@ -45,7 +46,7 @@ namespace Oqtane.Repository
         {
             _db.Entry(module).State = EntityState.Modified;
             _db.SaveChanges();
-            _permissions.UpdatePermissions(module.SiteId, EntityNames.Module, module.ModuleId, module.Permissions);
+            _permissions.UpdatePermissions(module.SiteId, EntityNames.Module, module.ModuleId, module.PermissionList);
             return module;
         }
 
@@ -67,7 +68,7 @@ namespace Oqtane.Repository
             }
             if (module != null)
             {
-                module.Permissions = _permissions.GetPermissionString(EntityNames.Module, module.ModuleId);
+                module.PermissionList = _permissions.GetPermissions(module.SiteId, EntityNames.Module, module.ModuleId)?.ToList();
             }
             return module;
         }

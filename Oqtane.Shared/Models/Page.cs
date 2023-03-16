@@ -1,13 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Oqtane.Models
 {
     /// <summary>
     /// Describes a Page in Oqtane
     /// </summary>
-    public class Page : IAuditable, IDeletable
+    public class Page : ModelBase, IDeletable
     {
         /// <summary>
         /// Id of the Page
@@ -77,20 +79,7 @@ namespace Oqtane.Models
         public int? UserId { get; set; }
         public bool IsPersonalizable { get; set; }
 
-        #region IAuditable Properties
-
-        /// <inheritdoc/>
-        public string CreatedBy { get; set; }
-        /// <inheritdoc/>
-        public DateTime CreatedOn { get; set; }
-        /// <inheritdoc/>
-        public string ModifiedBy { get; set; }
-        /// <inheritdoc/>
-        public DateTime ModifiedOn { get; set; }
-
-        #endregion
-
-        #region Extended IAuditable Properties, may be moved to an Interface some day so not documented yet
+        #region IDeletable Properties
 
         public string DeletedBy { get; set; }
         public DateTime? DeletedOn { get; set; }
@@ -111,7 +100,7 @@ namespace Oqtane.Models
         public List<Resource> Resources { get; set; }
 
         [NotMapped]
-        public string Permissions { get; set; }
+        public List<Permission> PermissionList { get; set; }
 
         [NotMapped]
         public Dictionary<string, string> Settings { get; set; }
@@ -127,13 +116,23 @@ namespace Oqtane.Models
 
         #region Deprecated Properties
 
-        [Obsolete("This property is deprecated", false)]
+        [Obsolete("The EditMode property is deprecated", false)]
         [NotMapped]
         public bool EditMode { get; set; }
 
-        [Obsolete("This property is deprecated", false)]
+        [Obsolete("The LayoutType property is deprecated", false)]
         [NotMapped]
         public string LayoutType { get; set; }
+
+        [Obsolete("The Permissions property is deprecated. Use PermissionList instead", false)]
+        [NotMapped]
+        [JsonIgnore] // exclude from API payload
+        public string Permissions {
+            get
+            {
+                return JsonSerializer.Serialize(PermissionList);
+            }
+        }
 
         #endregion
     }

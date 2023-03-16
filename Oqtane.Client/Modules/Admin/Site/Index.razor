@@ -78,7 +78,7 @@
 						<option value="-">&lt;@Localizer["Not Specified"]&gt;</option>
                         @foreach (Page page in PageState.Pages)
                         {
-							if (UserSecurity.ContainsRole(page.Permissions, PermissionNames.View, RoleNames.Everyone))
+							if (UserSecurity.ContainsRole(page.PermissionList, PermissionNames.View, RoleNames.Everyone))
 							{
 								<option value="@(page.PageId)">@(new string('-', page.Level * 2))@(page.Name)</option>
 							}
@@ -93,6 +93,12 @@
 						<option value="True">@SharedLocalizer["Yes"]</option>
 						<option value="False">@SharedLocalizer["No"]</option>
 					</select>
+				</div>
+			</div>
+			<div class="row mb-1 align-items-center">
+				<Label Class="col-sm-3" For="sitemap" HelpText="The site map url for this site which can be submitted to search engines for indexing" ResourceKey="SiteMap">Site Map: </Label>
+				<div class="col-sm-9">
+					<input id="sitemap" class="form-control" @bind="@_sitemap" required disabled />
 				</div>
 			</div>
 		</div>
@@ -127,7 +133,7 @@
                     </div>
                 </div>
                 <div class="row mb-1 align-items-center">
-                    <Label Class="col-sm-3" For="username" HelpText="Enter the username for your SMTP account" ResourceKey="SmptUsername">Username: </Label>
+                    <Label Class="col-sm-3" For="username" HelpText="Enter the username for your SMTP account" ResourceKey="SmtpUsername">Username: </Label>
                     <div class="col-sm-9">
                         <input id="username" class="form-control" @bind="@_smtpusername" />
                     </div>
@@ -142,12 +148,21 @@
                     </div>
                 </div>
                 <div class="row mb-1 align-items-center">
-                    <Label Class="col-sm-3" For="sender" HelpText="Enter the email which emails will be sent from. Please note that this email address may need to be authorized with the SMTP server." ResourceKey="SmptSender">Email Sender: </Label>
+                    <Label Class="col-sm-3" For="sender" HelpText="Enter the email which emails will be sent from. Please note that this email address may need to be authorized with the SMTP server." ResourceKey="SmtpSender">Email Sender: </Label>
                     <div class="col-sm-9">
                         <input id="sender" class="form-control" @bind="@_smtpsender" />
                     </div>
                 </div>
-                <div class="row mb-1 align-items-center">
+				<div class="row mb-1 align-items-center">
+					<Label Class="col-sm-3" For="relay" HelpText="Only specify this option if you have properly configured an SMTP Relay Service to route your outgoing mail. This option will send notifications from the user's email rather than from the Email Sender specified above." ResourceKey="SmtpRelay">Relay Configured? </Label>
+					<div class="col-sm-9">
+						<select id="relay" class="form-select" @bind="@_smtprelay" required>
+							<option value="True">@SharedLocalizer["Yes"]</option>
+							<option value="False">@SharedLocalizer["No"]</option>
+						</select>
+					</div>
+				</div>
+				<div class="row mb-1 align-items-center">
 					<Label Class="col-sm-3" For="retention" HelpText="Number of days of notifications to retain" ResourceKey="Retention">Retention (Days): </Label>
 					<div class="col-sm-9">
 						<input id="retention" class="form-control" @bind="@_retention" />
@@ -258,16 +273,16 @@
                     </div>
                 </div>
             </Section>
-            <Section Name="TenantInformation" Heading="Tenant Information" ResourceKey="TenantInformation">
+            <Section Name="TenantInformation" Heading="Database" ResourceKey="TenantInformation">
                 <div class="container">
                     <div class="row mb-1 align-items-center">
-                        <Label Class="col-sm-3" For="tenant" HelpText="The tenant for the site" ResourceKey="Tenant">Tenant: </Label>
+						<Label Class="col-sm-3" For="tenant" HelpText="The name of the database used for the site" ResourceKey="Tenant">Database: </Label>
                         <div class="col-sm-9">
                             <input id="tenant" class="form-control" @bind="@_tenant" readonly />
                         </div>
                     </div>
                     <div class="row mb-1 align-items-center">
-                        <Label Class="col-sm-3" For="database" HelpText="The database for the tenant" ResourceKey="Database">Database: </Label>
+                        <Label Class="col-sm-3" For="database" HelpText="The type of database" ResourceKey="Database">Type: </Label>
                         <div class="col-sm-9">
                             <input id="database" class="form-control" @bind="@_database" readonly />
                         </div>
@@ -275,7 +290,7 @@
                     <div class="row mb-1 align-items-center">
                         <Label Class="col-sm-3" For="connectionstring" HelpText="The connection information for the database" ResourceKey="ConnectionString">Connection: </Label>
                         <div class="col-sm-9">
-                            <textarea id="connectionstring" class="form-control" @bind="@_connectionstring" rows="2" readonly></textarea>
+							<input id="connectionstring" class="form-control" @bind="@_connectionstring" readonly />
                         </div>
                     </div>
                 </div>
@@ -312,6 +327,7 @@
 	private string _containertype = "-";
 	private string _admincontainertype = "-";
 	private string _homepageid = "-";
+	private string _sitemap = "";
 	private string _smtphost = string.Empty;
 	private string _smtpport = string.Empty;
 	private string _smtpssl = "False";
@@ -320,6 +336,7 @@
 	private string _smtppasswordtype = "password";
 	private string _togglesmtppassword = string.Empty;
 	private string _smtpsender = string.Empty;
+	private string _smtprelay = "False";
 	private string _retention = string.Empty;
 	private string _pwaisenabled;
 	private int _pwaappiconfileid = -1;
@@ -351,6 +368,7 @@
 				_runtime = site.Runtime;
 				_prerender = site.RenderMode.Replace(_runtime, "");
 				_isdeleted = site.IsDeleted.ToString();
+				_sitemap = PageState.Alias.Protocol + PageState.Alias.Name + "/pages/sitemap.xml";
 
 				await GetAliases();
 
@@ -393,6 +411,7 @@
 				_smtppassword = SettingService.GetSetting(settings, "SMTPPassword", string.Empty);
 				_togglesmtppassword = SharedLocalizer["ShowPassword"];
 				_smtpsender = SettingService.GetSetting(settings, "SMTPSender", string.Empty);
+				_smtprelay = SettingService.GetSetting(settings, "SMTPRelay", "False");
 				_retention = SettingService.GetSetting(settings, "NotificationRetention", "30");
 
 				if (UserSecurity.IsAuthorized(PageState.User, RoleNames.Host))
@@ -444,7 +463,7 @@
 		}
 		catch (Exception ex)
 		{
-			await logger.LogError(ex, "Error Loading Pane Layouts For Theme {ThemeType} {Error}", _themetype, ex.Message);
+			await logger.LogError(ex, "Error Loading Containers For Theme {ThemeType} {Error}", _themetype, ex.Message);
 			AddModuleMessage(Localizer["Error.Theme.LoadPane"], MessageType.Error);
 		}
 	}
@@ -532,6 +551,7 @@
 						settings = SettingService.SetSetting(settings, "SMTPUsername", _smtpusername, true);
 						settings = SettingService.SetSetting(settings, "SMTPPassword", _smtppassword, true);
 						settings = SettingService.SetSetting(settings, "SMTPSender", _smtpsender, true);
+						settings = SettingService.SetSetting(settings, "SMTPRelay", _smtprelay, true);
 						settings = SettingService.SetSetting(settings, "NotificationRetention", _retention, true);
 						await SettingService.UpdateSiteSettingsAsync(settings, site.SiteId);
 
@@ -602,12 +622,12 @@
 			try
 			{
 				var settings = await SettingService.GetSiteSettingsAsync(PageState.Site.SiteId);
-				SettingService.SetSetting(settings, "SMTPHost", _smtphost, true);
-				SettingService.SetSetting(settings, "SMTPPort", _smtpport, true);
-				SettingService.SetSetting(settings, "SMTPSSL", _smtpssl, true);
-				SettingService.SetSetting(settings, "SMTPUsername", _smtpusername, true);
-				SettingService.SetSetting(settings, "SMTPPassword", _smtppassword, true);
-				SettingService.SetSetting(settings, "SMTPSender", _smtpsender, true);
+				settings = SettingService.SetSetting(settings, "SMTPHost", _smtphost, true);
+				settings = SettingService.SetSetting(settings, "SMTPPort", _smtpport, true);
+				settings = SettingService.SetSetting(settings, "SMTPSSL", _smtpssl, true);
+				settings = SettingService.SetSetting(settings, "SMTPUsername", _smtpusername, true);
+				settings = SettingService.SetSetting(settings, "SMTPPassword", _smtppassword, true);
+				settings = SettingService.SetSetting(settings, "SMTPSender", _smtpsender, true);
 				await SettingService.UpdateSiteSettingsAsync(settings, PageState.Site.SiteId);
 				await logger.LogInformation("Site SMTP Settings Saved");
 

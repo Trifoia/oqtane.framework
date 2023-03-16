@@ -89,10 +89,10 @@ namespace Oqtane.Controllers
                 site.Pages = new List<Page>();
                 foreach (Page page in _pages.GetPages(site.SiteId))
                 {
-                    if (_userPermissions.IsAuthorized(User, PermissionNames.View, page.Permissions))
+                    if (_userPermissions.IsAuthorized(User, PermissionNames.View, page.PermissionList))
                     {
                         page.Settings = settings.Where(item => item.EntityId == page.PageId)
-                            .Where(item => !item.IsPrivate || _userPermissions.IsAuthorized(User, PermissionNames.Edit, page.Permissions))
+                            .Where(item => !item.IsPrivate || _userPermissions.IsAuthorized(User, PermissionNames.Edit, page.PermissionList))
                             .ToDictionary(setting => setting.SettingName, setting => setting.SettingValue);
                         site.Pages.Add(page);
                     }
@@ -105,13 +105,13 @@ namespace Oqtane.Controllers
                 site.Modules = new List<Module>();
                 foreach (PageModule pagemodule in _pageModules.GetPageModules(site.SiteId))
                 {
-                    if (_userPermissions.IsAuthorized(User, PermissionNames.View, pagemodule.Module.Permissions))
+                    if (_userPermissions.IsAuthorized(User, PermissionNames.View, pagemodule.Module.PermissionList))
                     {
                         Module module = new Module();
                         module.SiteId = pagemodule.Module.SiteId;
                         module.ModuleDefinitionName = pagemodule.Module.ModuleDefinitionName;
                         module.AllPages = pagemodule.Module.AllPages;
-                        module.Permissions = pagemodule.Module.Permissions;
+                        module.PermissionList = pagemodule.Module.PermissionList;
                         module.CreatedBy = pagemodule.Module.CreatedBy;
                         module.CreatedOn = pagemodule.Module.CreatedOn;
                         module.ModifiedBy = pagemodule.Module.ModifiedBy;
@@ -128,9 +128,10 @@ namespace Oqtane.Controllers
                         module.Order = pagemodule.Order;
                         module.ContainerType = pagemodule.ContainerType;
 
-                        module.ModuleDefinition = moduledefinitions.Find(item => item.ModuleDefinitionName == module.ModuleDefinitionName);
+                        module.ModuleDefinition = FilterModuleDefinition(moduledefinitions.Find(item => item.ModuleDefinitionName == module.ModuleDefinitionName));
+
                         module.Settings = settings.Where(item => item.EntityId == pagemodule.ModuleId)
-                            .Where(item => !item.IsPrivate || _userPermissions.IsAuthorized(User, PermissionNames.Edit, pagemodule.Module.Permissions))
+                            .Where(item => !item.IsPrivate || _userPermissions.IsAuthorized(User, PermissionNames.Edit, pagemodule.Module.PermissionList))
                             .ToDictionary(setting => setting.SettingName, setting => setting.SettingValue);
 
                         site.Modules.Add(module);
@@ -150,6 +151,28 @@ namespace Oqtane.Controllers
                 HttpContext.Response.StatusCode = (int)HttpStatusCode.Forbidden;
                 return null;
             }
+        }
+
+        private ModuleDefinition FilterModuleDefinition(ModuleDefinition moduleDefinition)
+        {
+            var ModuleDefinition = new ModuleDefinition();
+
+            if (moduleDefinition != null)
+            {
+                // required client-side properties
+                ModuleDefinition.ModuleDefinitionId = moduleDefinition.ModuleDefinitionId;
+                ModuleDefinition.SiteId = moduleDefinition.SiteId;
+                ModuleDefinition.ModuleDefinitionName = moduleDefinition.ModuleDefinitionName;
+                ModuleDefinition.Name = moduleDefinition.Name;
+                ModuleDefinition.Runtimes = moduleDefinition.Runtimes;
+                ModuleDefinition.ControlTypeRoutes = moduleDefinition.ControlTypeRoutes;
+                ModuleDefinition.DefaultAction = moduleDefinition.DefaultAction;
+                ModuleDefinition.SettingsType = moduleDefinition.SettingsType;
+                ModuleDefinition.ControlTypeTemplate = moduleDefinition.ControlTypeTemplate;
+                ModuleDefinition.IsPortable = moduleDefinition.IsPortable;
+            }
+
+            return ModuleDefinition;
         }
 
         // POST api/<controller>
