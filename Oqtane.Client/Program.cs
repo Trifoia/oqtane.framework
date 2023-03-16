@@ -16,6 +16,7 @@ using Microsoft.JSInterop;
 using Oqtane.Documentation;
 using Oqtane.Modules;
 using Oqtane.Services;
+using Oqtane.Shared;
 using Oqtane.UI;
 
 namespace Oqtane.Client
@@ -56,7 +57,11 @@ namespace Oqtane.Client
                 RegisterClientStartups(assembly, builder.Services);
             }
 
-            await builder.Build().RunAsync();
+            var host = builder.Build();
+
+            await SetCultureFromLocalizationCookie(host.Services);
+
+            await host.RunAsync();
         }
 
         private static async Task LoadClientAssemblies(HttpClient http, IServiceProvider serviceProvider)
@@ -193,23 +198,37 @@ namespace Oqtane.Client
         private static void RegisterModuleServices(Assembly assembly, IServiceCollection services)
         {
             // dynamically register module scoped services
-            var implementationTypes = assembly.GetInterfaces<IService>();
-            foreach (var implementationType in implementationTypes)
+            try
             {
-                if (implementationType.AssemblyQualifiedName != null)
+                var implementationTypes = assembly.GetInterfaces<IService>();
+                foreach (var implementationType in implementationTypes)
                 {
-                    var serviceType = Type.GetType(implementationType.AssemblyQualifiedName.Replace(implementationType.Name, $"I{implementationType.Name}"));
-                    services.AddScoped(serviceType ?? implementationType, implementationType);
+                    if (implementationType.AssemblyQualifiedName != null)
+                    {
+                        var serviceType = Type.GetType(implementationType.AssemblyQualifiedName.Replace(implementationType.Name, $"I{implementationType.Name}"));
+                        services.AddScoped(serviceType ?? implementationType, implementationType);
+                    }
                 }
+            }
+            catch
+            {
+                // could not interrogate assembly - likely missing dependencies
             }
         }
 
         private static void RegisterClientStartups(Assembly assembly, IServiceCollection services)
         {
-            var startUps = assembly.GetInstances<IClientStartup>();
-            foreach (var startup in startUps)
+            try
             {
-                startup.ConfigureServices(services);
+                var startUps = assembly.GetInstances<IClientStartup>();
+                foreach (var startup in startUps)
+                {
+                    startup.ConfigureServices(services);
+                }
+            }
+            catch
+            {
+                // could not interrogate assembly - likely missing dependencies
             }
         }
 
@@ -220,7 +239,7 @@ namespace Oqtane.Client
             var localizationCookie = await interop.GetCookie(CookieRequestCultureProvider.DefaultCookieName);
             var culture = CookieRequestCultureProvider.ParseCookieValue(localizationCookie)?.UICultures?[0].Value;
             var localizationService = serviceProvider.GetRequiredService<ILocalizationService>();
-            var cultures = await localizationService.GetCulturesAsync();
+            var cultures = await localizationService.GetCulturesAsync(false);
 
             if (culture == null || !cultures.Any(c => c.Name.Equals(culture, StringComparison.OrdinalIgnoreCase)))
             {

@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -28,12 +27,25 @@ namespace Oqtane.Repository
 
         public IEnumerable<File> GetFiles(int folderId)
         {
-            IEnumerable<Permission> permissions = _permissions.GetPermissions(EntityNames.Folder, folderId).ToList();
-            IEnumerable<File> files = _db.File.Where(item => item.FolderId == folderId).Include(item => item.Folder);
+            return GetFiles(folderId, true);
+        }
+
+        public IEnumerable<File> GetFiles(int folderId, bool tracking)
+        {
             var alias = _tenants.GetAlias();
+            IEnumerable<Permission> permissions = _permissions.GetPermissions(alias.SiteId, EntityNames.Folder, folderId).ToList();
+            IEnumerable<File> files;
+            if (tracking)
+            {
+                files = _db.File.Where(item => item.FolderId == folderId).Include(item => item.Folder);
+            }
+            else
+            {
+                files = _db.File.AsNoTracking().Where(item => item.FolderId == folderId).Include(item => item.Folder);
+            }
             foreach (File file in files)
             {
-                file.Folder.Permissions = permissions.EncodePermissions();
+                file.Folder.PermissionList = permissions.ToList();
                 file.Url = GetFileUrl(file, alias);
             }
             return files;
@@ -41,6 +53,7 @@ namespace Oqtane.Repository
 
         public File AddFile(File file)
         {
+            file.IsDeleted = false;
             _db.File.Add(file);
             _db.SaveChanges();
             file.Folder = _folderRepository.GetFolder(file.FolderId);
@@ -76,10 +89,25 @@ namespace Oqtane.Repository
             }
             if (file != null)
             {
-                IEnumerable<Permission> permissions = _permissions.GetPermissions(EntityNames.Folder, file.FolderId).ToList();
-                file.Folder.Permissions = permissions.EncodePermissions();
+                file.Folder.PermissionList = _permissions.GetPermissions(file.Folder.SiteId, EntityNames.Folder, file.FolderId).ToList();
                 file.Url = GetFileUrl(file, _tenants.GetAlias());
             }
+            return file;
+        }
+
+        public File GetFile(int folderId, string fileName)
+        {
+            var file = _db.File.AsNoTracking()
+                .Include(item => item.Folder)
+                .FirstOrDefault(item => item.FolderId == folderId &&
+                    item.Name.ToLower() == fileName);
+
+            if (file != null)
+            {
+                file.Folder.PermissionList = _permissions.GetPermissions(file.Folder.SiteId, EntityNames.Folder, file.FolderId).ToList();
+                file.Url = GetFileUrl(file, _tenants.GetAlias());
+            }
+
             return file;
         }
 
@@ -93,8 +121,8 @@ namespace Oqtane.Repository
 
             if (file != null)
             {
-                IEnumerable<Permission> permissions = _permissions.GetPermissions(EntityNames.Folder, file.FolderId).ToList();
-                file.Folder.Permissions = permissions.EncodePermissions();
+                IEnumerable<Permission> permissions = _permissions.GetPermissions(file.Folder.SiteId, EntityNames.Folder, file.FolderId).ToList();
+                file.Folder.PermissionList = permissions.ToList();
                 file.Url = GetFileUrl(file, _tenants.GetAlias());
             }
 
@@ -117,7 +145,7 @@ namespace Oqtane.Repository
         public string GetFilePath(File file)
         {
             if (file == null) return null;
-            var folder = file.Folder ?? _db.Folder.Find(file.FolderId);
+            var folder = file.Folder ?? _db.Folder.AsNoTracking().FirstOrDefault(item => item.FolderId == file.FolderId);
             var filepath = Path.Combine(_folderRepository.GetFolderPath(folder), file.Name);
             return filepath;
         }
