@@ -48,6 +48,7 @@ namespace Oqtane.Repository
             _db.Entry(moduleDefinition).State = EntityState.Modified;
             _db.SaveChanges();
             _permissions.UpdatePermissions(moduleDefinition.SiteId, EntityNames.ModuleDefinition, moduleDefinition.ModuleDefinitionId, moduleDefinition.PermissionList);
+            _cache.Remove("moduledefinitions");
         }
 
         public void DeleteModuleDefinition(int moduleDefinitionId)
@@ -57,6 +58,29 @@ namespace Oqtane.Repository
             _db.ModuleDefinition.Remove(moduleDefinition);
             _db.SaveChanges();
             _cache.Remove("moduledefinitions");
+        }
+
+        public ModuleDefinition FilterModuleDefinition(ModuleDefinition moduleDefinition)
+        {
+            var ModuleDefinition = new ModuleDefinition();
+
+            if (moduleDefinition != null)
+            {
+                // only include required client-side properties
+                ModuleDefinition.ModuleDefinitionId = moduleDefinition.ModuleDefinitionId;
+                ModuleDefinition.SiteId = moduleDefinition.SiteId;
+                ModuleDefinition.ModuleDefinitionName = moduleDefinition.ModuleDefinitionName;
+                ModuleDefinition.Name = moduleDefinition.Name;
+                ModuleDefinition.Runtimes = moduleDefinition.Runtimes;
+                ModuleDefinition.PermissionNames = moduleDefinition.PermissionNames;
+                ModuleDefinition.ControlTypeRoutes = moduleDefinition.ControlTypeRoutes;
+                ModuleDefinition.DefaultAction = moduleDefinition.DefaultAction;
+                ModuleDefinition.SettingsType = moduleDefinition.SettingsType;
+                ModuleDefinition.ControlTypeTemplate = moduleDefinition.ControlTypeTemplate;
+                ModuleDefinition.IsPortable = moduleDefinition.IsPortable;
+            }
+
+            return ModuleDefinition;
         }
 
         public List<ModuleDefinition> LoadModuleDefinitions(int siteId)
@@ -299,10 +323,10 @@ namespace Oqtane.Repository
                 permission.EntityName = p.EntityName;
                 permission.EntityId = p.EntityId;
                 permission.PermissionName = p.PermissionName;
-                permission.RoleId = p.RoleId;
+                permission.RoleId = null;
                 permission.RoleName = p.RoleName;
                 permission.UserId = p.UserId;
-                permission.IsAuthorized = p.IsAuthorized; 
+                permission.IsAuthorized = p.IsAuthorized;
                 permissions.Add(permission);
             }
             return permissions;

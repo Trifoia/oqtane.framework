@@ -20,15 +20,6 @@ else
             <form @ref="form" class="@(validated ? "was-validated" : "needs-validation")" novalidate>
                 <div class="container">
 					<div class="row mb-1 align-items-center">
-						<Label Class="col-sm-3" For="translated" HelpText="Specify If You Wish To Select Languages That Have Translations Installed" ResourceKey="Translated">Translated?</Label>
-						<div class="col-sm-9">
-							<select id="translated" class="form-select" value="@_translated" @onchange="(e => TranslatedChanged(e))" required>
-								<option value="True">@SharedLocalizer["Yes"]</option>
-								<option value="False">@SharedLocalizer["No"]</option>
-							</select>
-						</div>
-					</div>
-					<div class="row mb-1 align-items-center">
                         <Label Class="col-sm-3" For="name" HelpText="Name Of The Language" ResourceKey="Name">Name:</Label>
                         <div class="col-sm-9">
                             <select id="_code" class="form-select" @bind="@_code" required>
@@ -57,13 +48,12 @@ else
         <TabPanel Name="Upload" ResourceKey="Upload" Security="SecurityAccessLevel.Host">
             <div class="container">
                 <div class="row mb-1 align-items-center">
-                    <Label Class="col-sm-3" HelpText="Upload one or more translations. Once they are uploaded click Install to complete the installation." ResourceKey="LanguageUpload">Translation: </Label>
+                    <Label Class="col-sm-3" HelpText="Upload one or more translations. Once they are uploaded click Install." ResourceKey="LanguageUpload">Translation: </Label>
                     <div class="col-sm-9">
-                        <FileManager Folder="@Constants.PackagesFolder" UploadMultiple="true" />
+                        <FileManager Folder="@Constants.PackagesFolder" UploadMultiple="true" OnUpload="OnUpload" />
                     </div>
                 </div>
             </div>
-            <button type="button" class="btn btn-success" @onclick="InstallTranslations">@SharedLocalizer["Install"]</button>
             <NavLink class="btn btn-secondary" href="@NavigateUrl()">@SharedLocalizer["Cancel"]</NavLink>
         </TabPanel>
     </TabStrip>
@@ -73,7 +63,6 @@ else
 	private ElementReference form;
 	private bool validated = false;
 
-	private string _translated = "True";
 	private string _code = "-";
 	private string _default = "False";
 	private List<string> _languages;
@@ -91,16 +80,9 @@ else
 
 	private async Task LoadCultures()
 	{
-		_cultures = await LocalizationService.GetCulturesAsync(bool.Parse(_translated));
+		_cultures = await LocalizationService.GetCulturesAsync(false);
 		_cultures = _cultures.Where(c => !c.Name.Equals(Constants.DefaultCulture) && !_languages.Contains(c.Name));
 		_code = "-";
-	}
-
-	private async void TranslatedChanged(ChangeEventArgs e)
-	{
-		_translated = (string)e.Value;
-		await LoadCultures();
-		StateHasChanged();
 	}
 
 	private async Task SaveLanguage()
@@ -136,24 +118,11 @@ else
 				AddModuleMessage(Localizer["Error.Language.Add"], MessageType.Error);
 			}
 		}
-        else
-        {
-            AddModuleMessage(SharedLocalizer["Message.InfoRequired"], MessageType.Warning);
-        }
-    }
-
-	private async Task InstallTranslations()
-    {
-        try
-        {
-            await PackageService.InstallPackagesAsync();
-            AddModuleMessage(string.Format(Localizer["Success.Language.Install"], NavigateUrl("admin/system")), MessageType.Success);
-        }
-        catch (Exception ex)
-        {
-            await logger.LogError(ex, "Error Installing Translations");
-        }
-    }
+		else
+		{
+			AddModuleMessage(SharedLocalizer["Message.InfoRequired"], MessageType.Warning);
+		}
+	}
 
     private async Task SetCultureAsync(string culture)
     {
@@ -165,5 +134,10 @@ else
 
             NavigationManager.NavigateTo(NavigationManager.Uri, true);
         }
+    }
+
+    private void OnUpload()
+    {
+        AddModuleMessage(string.Format(Localizer["Success.Language.Download"], NavigateUrl("admin/system")), MessageType.Success);
     }
 }
