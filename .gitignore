@@ -29,3 +29,6 @@ Oqtane.Server/wwwroot/Modules
 Oqtane.Server/wwwroot/Themes
 !Oqtane.Server/wwwroot/Themes/Oqtane.Themes.*
 !Oqtane.Server/wwwroot/Themes/Templates
+/.cr/personal/FavoritesList
+/Oqtane.Server/appsettings.json
+/Visual Studio 2022/Visualizers/attribcache140.bin

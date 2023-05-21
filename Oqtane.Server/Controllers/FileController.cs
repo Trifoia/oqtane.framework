@@ -287,6 +287,7 @@ namespace Oqtane.Controllers
         {
             if (formfile.Length <= 0)
             {
+                _logger.Log(LogLevel.Error, this, LogFunction.Create, "File Upload size zero {folder}", folder, formfile);
                 return;
             }
 
@@ -294,6 +295,7 @@ namespace Oqtane.Controllers
             string token = ".part_";
             if (!formfile.FileName.IsPathOrFileValid() || !formfile.FileName.Contains(token))
             {
+                _logger.Log(LogLevel.Error, this, LogFunction.Create, "File Upload invalid name or partial {folder}", folder, formfile);
                 return;
             }
 
@@ -301,6 +303,7 @@ namespace Oqtane.Controllers
             var extension = Path.GetExtension(formfile.FileName.Substring(0, formfile.FileName.IndexOf(token))).Replace(".", "");
             if (!Constants.UploadableFiles.Split(',').Contains(extension.ToLower()))
             {
+                _logger.Log(LogLevel.Error, this, LogFunction.Create, "File Upload bad extension {extension}", extension,  folder, formfile);
                 return;
             }
 
@@ -647,7 +650,14 @@ namespace Oqtane.Controllers
                     path = Utilities.PathCombine(path, folder, Path.DirectorySeparatorChar.ToString());
                     if (!Directory.Exists(path))
                     {
-                        Directory.CreateDirectory(path);
+                        try
+                        {
+                            Directory.CreateDirectory(path);
+                        }
+                        catch (Exception ex) {
+                            _logger.Log(LogLevel.Error, this, LogFunction.Create, "error creating directory {path} {ex}", path, ex.Message, ex);
+
+                        }
                     }
                 }
             }

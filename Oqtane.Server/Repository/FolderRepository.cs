@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
@@ -101,16 +103,21 @@ namespace Oqtane.Repository
 
         public string GetFolderPath(Folder folder)
         {
-            string path = "";
-            switch (folder.Type)
+            bool isAzureLinux = System.Environment.GetEnvironmentVariable("WEBSITE_INSTANCE_ID") != null
+                && Environment.OSVersion.ToString().Contains("nix", StringComparison.OrdinalIgnoreCase);
+            var wwwrootLinux = _environment.WebRootPath.Split(Path.DirectorySeparatorChar).Last();
+
+            string path = (folder.Type,isAzureLinux) switch
             {
-                case FolderTypes.Private:
-                    path = Utilities.PathCombine(_environment.ContentRootPath, "Content", "Tenants", _tenants.GetTenant().TenantId.ToString(), "Sites", folder.SiteId.ToString(), folder.Path);
-                    break;
-                case FolderTypes.Public:
-                    path = Utilities.PathCombine(_environment.WebRootPath, "Content", "Tenants", _tenants.GetTenant().TenantId.ToString(), "Sites", folder.SiteId.ToString(), folder.Path);
-                    break;
-            }
+                // windows hosting 
+                (FolderTypes.Private,false) => Utilities.PathCombine(_environment.ContentRootPath, "Content", "Tenants", _tenants.GetTenant().TenantId.ToString(), "Sites", folder.SiteId.ToString(), folder.Path),
+                (FolderTypes.Public, false) => Utilities.PathCombine(_environment.WebRootPath, "Content", "Tenants", _tenants.GetTenant().TenantId.ToString(), "Sites", folder.SiteId.ToString(), folder.Path),
+                // linux hosting
+                (FolderTypes.Private, true) => Utilities.PathCombine("Content", "Tenants", _tenants.GetTenant().TenantId.ToString(), "Sites", folder.SiteId.ToString(), folder.Path),
+                (FolderTypes.Public, true) => Utilities.PathCombine(wwwrootLinux, "Content", "Tenants", _tenants.GetTenant().TenantId.ToString(), "Sites", folder.SiteId.ToString(), folder.Path),
+                _ => ""
+            };
+
             return path;
         }
 
