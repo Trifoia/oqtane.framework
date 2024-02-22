@@ -1,0 +1,17 @@
+﻿.mbb-image {
+  width: 100%;
+  height: auto;
+  z-index: 1;
+  align-self: center;
+}
+
+.mbb-image-edit-container {
+  height: 100px;
+  display: flex;
+  flex-direction: column;
+}
+.mbb-image-edit-container .mbb-image {
+  position: relative;
+  height: 100%;
+  object-fit: contain;
+}

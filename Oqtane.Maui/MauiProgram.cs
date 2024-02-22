@@ -7,6 +7,7 @@ using Oqtane.Services;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Microsoft.Extensions.Logging;
 
 namespace Oqtane.Maui;
 
@@ -22,10 +23,9 @@ public static class MauiProgram
 			});
 
 		builder.Services.AddMauiBlazorWebView();
-		#if DEBUG
-		builder.Services.AddBlazorWebViewDeveloperTools();
+#if DEBUG
+        builder.Services.AddBlazorWebViewDeveloperTools();
 #endif
-
         var apiurl = LoadAppSettings(); 
 
         if (!string.IsNullOrEmpty(apiurl))
@@ -243,6 +243,12 @@ public static class MauiProgram
 
     private static void RegisterModuleServices(Assembly assembly, IServiceCollection services)
     {
+        services.AddLogging(logging =>
+        {
+            logging.AddFilter("Microsoft.AspNetCore.Components.WebView", LogLevel.Trace);
+            logging.AddDebug();
+        });
+
         // dynamically register module scoped services
         try
         {

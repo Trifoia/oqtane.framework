@@ -1,0 +1,36 @@
+﻿.mbb-navigation-controls-container {
+    min-height: var(--bottom-tab-navigation-height);
+    max-height: var(--bottom-tab-navigation-height);
+    background-color: var(--bottom-tab-navigation-backgound);
+    position: sticky;
+    bottom: 0;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    z-index: 1;
+    overflow: hidden;
+
+    &.mbb-hide-nav {
+        min-height: 0;
+        max-height: 0;
+    }
+
+    .mud-button-text {
+        padding: 0;
+    }
+
+    .mud-button-root {
+        margin: 0 10px;
+    }
+
+    .mbb-nav-mud-button {
+        width: 100px;
+    }
+
+    .mbb-navigation-icon {
+        margin: 5px 10px;
+        width: auto;
+        height: calc(var(--bottom-tab-navigation-height) - 20px);
+    }
+}

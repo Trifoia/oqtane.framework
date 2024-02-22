@@ -1,0 +1,36 @@
+﻿:root {
+    --background: #9E28B53E;
+    --text: #000000;
+    --border: #aaaaaa;
+    // accents
+    --purple: #9E28B5;
+    --red: #EE283B;
+    --blue: #0083CA;
+    --orange: #FF6C0E;
+    --green: #6CBE45;
+    --pink: #E81F76;
+    --yellow: #FFCC33;
+    --accentText: #ffffff;
+    // header
+    --header-background: #ffffff;
+    --header-border: #aaaaaa;
+    --footer-background: #EAE1B7;
+    // footer
+    --bottom-tab-navigation-backgound: #ffffff;
+    --bottom-tab-navigation-border: #aaaaaa;
+    // Page Specific
+    --journey-background: linear-gradient(#9E28B5 0%, #A127B2 28%, #AA26AA 50%, #BA249C 69%, #D12189 87%, #E81F76 100%);
+    --journal-background: linear-gradient(#44DEDD 0%, #B5F2DB 46%, #B3F3DD 100%);
+    --daylight-background: linear-gradient(#0A9EDD 0%, #B5F2DB 46%, #F2DDB5 100%);
+    --evening-background: linear-gradient(var(--mud-palette-primary), var(--mud-palette-secondary));
+    // Journey-specific background colors
+    --journey-0-background: #e37961;
+    --journey-1-background: #FFE7A1;
+    --journey-2-background: #66E5DD;
+    --journey-3-background: #D4F3F2;
+    --journey-4-background: #FCCDD5;
+}
+
+.nav{
+    display: block;
+}

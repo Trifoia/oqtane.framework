@@ -1,0 +1,125 @@
+﻿.hidoku-container {
+    display: flex;
+    flex-direction: column;
+    width: calc(100% - 20px);
+
+    .hidoku-board-wrapper {
+        display: flex;
+        justify-content: center;
+        margin: 1rem;
+
+        .hidoku-board {
+            display: grid;
+            background-color: var(--mud-palette-black);
+            width: auto;
+            height: auto;
+            column-gap: .5rem;
+            row-gap: .5rem;
+            padding: .5rem;
+            float: left;
+
+            .hidoku-row {
+                display: grid;
+                grid-template-columns: repeat(4,auto);
+                column-gap: .5rem;
+
+                .hidoku-cell {
+                    background-color: var(--mud-palette-white);
+                    color: var(--mud-palette-black);
+                    font-size: 2rem;
+                    font-weight: bold;
+                    text-align: center;
+                    width: 3rem;
+                    height: 3rem;
+                    outline: none !important;
+                    border: none;
+
+                    &.moveable:hover {
+                        transform: translateY(-0.25rem);
+                        transition: transform 0.1s ease-out;
+                    }
+
+                    &.selected {
+                        background-color: var(--mud-palette-primary-lighten);
+                    }
+
+                    &.locked {
+                        background-color: #aaa;
+                    }
+
+                    &.errorflashing {
+                        animation: errorflash 1s infinite;
+                    }
+
+                    &.winflashing {
+                        animation: winflash 10s infinite;
+                    }
+                }
+            }
+        }
+
+        .hidoku-controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            width: 70%;
+
+            button {
+                margin-right: .5rem;
+                margin-bottom: .5rem;
+            }
+
+            button.hidoku-tile {
+                background-color: var(--mud-palette-white);
+                color: var(--mud-palette-black);
+                font-size: 2rem;
+                font-weight: bold;
+                text-align: center;
+                width: 3rem;
+                height: 3rem;
+                outline: none !important;
+                border-style: solid;
+
+                &:hover {
+                    transform: translateY(-0.25rem);
+                    transition: transform 0.1s ease-out;
+                }
+
+                &.selected {
+                    background-color: var(--mud-palette-primary-lighten);
+                    border-color: var(--mud-palette-black);
+                    border-width: medium;
+                }
+            }
+        }
+    }
+}
+
+// create flashing keyframe animation
+@keyframes errorflash {
+    0% {
+    }
+    37% {
+        background-color: var(--mud-palette-error);
+    }
+    100% {
+    }
+}
+
+// briefly flash each cell green with staggered start times
+@keyframes winflash {
+    0% {
+    }
+
+    3% {
+        transform:scale(1.2);
+        background-color: var(--mud-palette-success);
+        color: white;
+    }
+
+    10% {
+        transform: scale(1);
+        background-color: var(--mud-palette-white);
+        color: var(--mud-palette-black);
+    }
+}
