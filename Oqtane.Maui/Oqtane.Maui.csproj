@@ -42,11 +42,11 @@
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'tizen'">6.5</SupportedOSPlatformVersion>
 	</PropertyGroup>
 
-	<PropertyGroup Condition="'$(TargetFramework)'=='net8.0-ios'">
-	  <CodesignKey>Apple Development: Mark Davis (V8QBZ637RS)</CodesignKey>
-	  <CodesignProvision>VS: com.mindboba.mindboba Development</CodesignProvision>
-	  <ProvisioningType>automatic</ProvisioningType>
-	</PropertyGroup>
+  <PropertyGroup Condition="'$(TargetFramework)'=='net8.0-ios'">
+    <CodesignKey>Apple Distribution: MindBoba LLC (AC65CKSR77)</CodesignKey>
+    <CodesignProvision>mind boba signing profile</CodesignProvision>
+    <ProvisioningType>manual</ProvisioningType>
+  </PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net8.0-ios|AnyCPU'">
 	  <MtouchUseLlvm>True</MtouchUseLlvm>
@@ -54,6 +54,8 @@
 	  <ApplicationTitle>MindBoba</ApplicationTitle>
 	  <ApplicationId>com.mindboba.mindboba</ApplicationId>
 	  <ApplicationDisplayVersion>1.0.0</ApplicationDisplayVersion>
+	  <BuildIpa>True</BuildIpa>
+	  <IpaPackageName>com.mindboba.mindboba</IpaPackageName>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net8.0-ios|AnyCPU'">
@@ -62,14 +64,16 @@
 	  <ApplicationTitle>MindBoba</ApplicationTitle>
 	  <ApplicationId>com.mindboba.mindboba</ApplicationId>
 	  <ApplicationDisplayVersion>1.0.0</ApplicationDisplayVersion>
+	  <BuildIpa>True</BuildIpa>
+	  <IpaPackageName>com.mindboba.mindboba</IpaPackageName>
 	</PropertyGroup>
 
 	<ItemGroup>
 		<!-- App Icon -->
-		<MauiIcon Include="Resources\AppIcon\appicon.svg" />
-
+		<MauiIcon Include="Resources\AppIcon\appicon.svg" Color="#000000" />
+   
 		<!-- Splash Screen -->
-    <MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#512BD4" BaseSize="128,128" />
+    <MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#000000" BaseSize="128,128" />
 
     <!-- Images -->
 		<MauiImage Include="Resources\Images\*" />
