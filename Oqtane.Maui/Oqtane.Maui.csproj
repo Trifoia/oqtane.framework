@@ -4,7 +4,7 @@
 		<!-- Uncomment to also build the tizen app. You will need to install tizen by following this: https://github.com/Samsung/Tizen.NET -->
     <TargetFrameworks>net8.0-ios</TargetFrameworks>
     <!--<TargetFrameworks>net8.0-android;net8.0-ios;net8.0-maccatalyst</TargetFrameworks>-->
-		<!-- <TargetFrameworks>$(TargetFrameworks);net8.0-tizen</TargetFrameworks> -->
+		<!--<TargetFrameworks>$(TargetFrameworks);net8.0-tizen</TargetFrameworks> -->
 		<OutputType>Exe</OutputType>
     <Version>5.0.1</Version>
     <Product>MindBoba</Product>
@@ -49,7 +49,7 @@
 	  <ApplicationTitle>MindBoba</ApplicationTitle>
 	  <ApplicationId>com.mindboba.mindboba</ApplicationId>
 	  <ApplicationDisplayVersion>1.0.0</ApplicationDisplayVersion>
-	  <BuildIpa>True</BuildIpa>
+    <BuildIpa>True</BuildIpa>
 	  <IpaPackageName>com.mindboba.mindboba</IpaPackageName>
 	</PropertyGroup>
 
@@ -65,10 +65,10 @@
 
 	<ItemGroup>
 		<!-- App Icon -->
-		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#000000" />
+		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\mb_logo_2.svg" Color="#000000" />
    
 		<!-- Splash Screen -->
-    <MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#000000" BaseSize="128,128" />
+    <MauiSplashScreen Include="Resources\Splash\splash_screen_2.svg" Color="#000000" BaseSize="473,1024" />
 
     <!-- Images -->
 		<MauiImage Include="Resources\Images\*" />
