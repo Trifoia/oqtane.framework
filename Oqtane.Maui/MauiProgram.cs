@@ -243,12 +243,7 @@ public static class MauiProgram
 
     private static void RegisterModuleServices(Assembly assembly, IServiceCollection services)
     {
-        services.AddLogging(logging =>
-        {
-            logging.AddFilter("Microsoft.AspNetCore.Components.WebView", LogLevel.Trace);
-            logging.AddDebug();
-        });
-
+       
         // dynamically register module scoped services
         try
         {
@@ -261,6 +256,7 @@ public static class MauiProgram
                     services.AddScoped(serviceType ?? implementationType, implementationType);
                 }
             }
+
         }
         catch
         {
