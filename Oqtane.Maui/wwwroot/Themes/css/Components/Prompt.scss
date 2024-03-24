@@ -1,0 +1,39 @@
+﻿.mbb-journal-header {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+
+    padding: 1rem 2rem;
+    gap: 5%;
+
+    border-top-left-radius: var(--border-radius);
+    border-top-right-radius: var(--border-radius);
+
+    h2 {
+        flex: 1;
+        font-size: clamp(1rem, 5vw, 2rem);
+        color: var(--mud-palette-info-darken);
+        text-align: start;
+    }
+
+    img {
+        flex: 1;
+        width: max(5rem, 100%);
+        object-fit: contain;
+    }
+}
+
+.mbb-journal-input {
+    display: flex;
+    flex: 1;
+    border: 1px var(--mud-palette-info) solid;
+    padding: 1rem;
+    margin: 0.5rem 1rem;
+    background: none;
+}
+
+.mbb-journal-input:focus-visible {
+    outline: none;
+}
+
+

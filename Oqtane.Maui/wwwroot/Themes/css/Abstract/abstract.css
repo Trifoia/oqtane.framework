@@ -1,0 +1,273 @@
+﻿:root {
+  --background: #9E28B53E;
+  --text: #000000;
+  --border: #aaaaaa;
+  --purple: #9E28B5;
+  --red: #EE283B;
+  --blue: #0083CA;
+  --orange: #FF6C0E;
+  --green: #6CBE45;
+  --pink: #E81F76;
+  --yellow: #FFCC33;
+  --accentText: #ffffff;
+  --header-background: #ffffff;
+  --header-border: #aaaaaa;
+  --footer-background: #EAE1B7;
+  --bottom-tab-navigation-backgound: #ffffff;
+  --bottom-tab-navigation-border: #aaaaaa;
+  --journey-background: linear-gradient(#9E28B5 0%, #A127B2 28%, #AA26AA 50%, #BA249C 69%, #D12189 87%, #E81F76 100%);
+  --journal-background: linear-gradient(#44DEDD 0%, #B5F2DB 46%, #B3F3DD 100%);
+  --daylight-background: linear-gradient(#0A9EDD 0%, #B5F2DB 46%, #F2DDB5 100%);
+  --evening-background: linear-gradient(var(--mud-palette-primary), var(--mud-palette-secondary));
+  --journey-0-background: #e37961;
+  --journey-1-background: #FFE7A1;
+  --journey-2-background: #66E5DD;
+  --journey-3-background: #D4F3F2;
+  --journey-4-background: #FCCDD5;
+}
+
+.nav {
+  display: block;
+}
+
+:root {
+  --header-height: 60px;
+  --bottom-tab-navigation-height: 60px;
+  --border-radius: 5px;
+  font-size: 17px;
+  font-weight: 400;
+}
+
+h1 {
+  font-weight: 600;
+}
+
+body {
+  font-family: "Montserrat";
+}
+
+/**************************
+***************************
+*    MudBlazor Styles     *
+***************************  
+**************************/
+.mbb-mudnavmenu .mud-nav-link {
+  padding: 1rem 0.5rem;
+}
+
+.offcanvas.show,
+.offcanvas-end.show {
+  visibility: visible;
+}
+
+.mud-carousel .mud-icon-root.mud-svg-icon {
+  fill: var(--mud-palette-primary);
+}
+
+.mud-expand-panel {
+  margin: 0.25rem 0rem;
+}
+
+.mud-dialog.mud-dialog-fullscreen .mud-dialog-content {
+  padding: 0;
+}
+
+.mud-overlay .mud-overlay-scrim {
+  overflow: hidden;
+}
+
+@media (min-width: 768px) and (orientation: landscape) {
+  .mud-dialog.mud-dialog-fullscreen {
+    max-width: 50vh;
+  }
+}
+/***********************
+************************
+*    Oqtane Styles     *
+************************  
+***********************/
+body {
+  padding-top: 0;
+}
+
+.table > :not(caption) > * > * {
+  box-shadow: none;
+}
+
+.table .form-control {
+  background-color: #ffffff !important;
+  border-width: 0.5px !important;
+  border-bottom-color: #ccc !important;
+}
+
+.table .form-select {
+  background-color: #ffffff !important;
+  border-width: 0.5px !important;
+  border-bottom-color: #ccc !important;
+}
+
+.table .btn-primary {
+  background-color: var(--bs-primary);
+}
+
+.table .btn-secondary {
+  background-color: var(--bs-secondary);
+}
+
+.alert-dismissible .btn-close {
+  z-index: 1;
+}
+
+.controls {
+  z-index: 2000;
+  padding-top: 15px;
+  padding-bottom: 15px;
+  margin-right: 10px;
+}
+
+.app-menu .nav-item {
+  font-size: 0.9rem;
+  padding-bottom: 0.5rem;
+}
+
+.app-menu .nav-item a {
+  border-radius: 4px;
+  height: 3rem;
+  display: flex;
+  align-items: center;
+  line-height: 3rem;
+  padding-left: 1rem;
+}
+
+.app-menu .nav-item a.active {
+  background-color: rgba(255, 255, 255, 0.25);
+  color: white;
+}
+
+.app-menu .nav-item a:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.app-menu .nav-link .oi {
+  width: 1.5rem;
+  font-size: 1.1rem;
+  vertical-align: text-top;
+  top: -2px;
+}
+
+.navbar-toggler {
+  background-color: rgba(255, 255, 255, 0.1);
+  margin: 0.5rem;
+}
+
+div.app-moduleactions a.dropdown-toggle, div.app-moduleactions div.dropdown-menu {
+  color: #000000;
+  text-align: left;
+  font-weight: bold;
+}
+
+@media (max-width: 767px) {
+  .app-menu {
+    width: 100%;
+  }
+  .navbar {
+    position: fixed;
+    top: 60px;
+    width: 100%;
+  }
+  .controls {
+    height: 60px;
+    top: 15px;
+    position: fixed;
+    top: 0px;
+    width: 100%;
+    background-color: rgb(0, 0, 0);
+  }
+  .controls-group {
+    float: right;
+    margin-right: 25px;
+  }
+  .content {
+    position: relative;
+    top: 60px;
+  }
+}
+/* Oqtane Overrides */
+.controls-group {
+  align-items: center;
+  display: flex;
+  justify-content: flex-end;
+  max-width: max-content;
+  min-width: fit-content;
+}
+
+.mud-popover-open {
+  z-index: 10000 !important;
+}
+
+@media (max-width: 767px) {
+  .controls {
+    background: transparent;
+  }
+}
+@media (min-width: 768px) and (orientation: landscape) {
+  .mbb-container {
+    margin-inline: auto;
+    max-width: 50vh;
+  }
+}
+/* Utilities */
+.no-wrap {
+  flex-wrap: nowrap;
+}
+
+.maxw-maxcontent {
+  max-width: max-content;
+}
+
+.minw-maxcontent {
+  min-width: max-content;
+}
+
+.maxw-fitcontent {
+  max-width: fit-content;
+}
+
+.minw-fitcontent {
+  min-width: fit-content;
+}
+
+.mbb-editmode-container {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  align-items: center;
+}
+
+.mbb-editmode-button {
+  font-size: 1.2rem;
+  color: white;
+  text-shadow: 0px 0px 5px black;
+}
+
+.mbb-app-header {
+  position: sticky;
+  top: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: var(--header-height);
+  padding: 0.5rem 1.25rem;
+  background-color: var(--header-background);
+  border-bottom-width: 1px;
+  border-bottom-color: var(--header-border);
+  z-index: 99;
+}
+
+.mbb-mudnavmenu {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+}

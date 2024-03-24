@@ -1,0 +1,19 @@
+﻿.mbb-text-container {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  flex: 1;
+  width: calc(100% - 20px);
+  border-radius: var(--border-radius);
+  padding: 20px;
+  margin-bottom: 10px;
+  margin-top: 10px;
+  background-color: #FFFFFF;
+  z-index: 1;
+}
+.mbb-text-container p, .mbb-text-container li {
+  margin-bottom: 0.75rem;
+}
+.mbb-text-container h1, .mbb-text-container h2, .mbb-text-container h3, .mbb-text-container h4, .mbb-text-container h5, .mbb-text-container h6 {
+  margin-bottom: 0.75rem;
+}

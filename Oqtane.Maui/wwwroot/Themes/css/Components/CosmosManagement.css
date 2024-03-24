@@ -1,0 +1,52 @@
+﻿.mbb-journal-list-container {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.mbb-journal-list-item {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  margin: 5px 0;
+}
+
+.mbb-journal-list-item-actions {
+  display: flex;
+}
+
+.mbb-actions-container {
+  display: flex;
+  flex-direction: row;
+}
+
+.mud-tabs {
+  width: 100%;
+  flex: 1;
+}
+
+.mud-tabs-panels {
+  height: 400px;
+  padding: 10px;
+}
+
+.mbb-journal-carousel {
+  height: 100%;
+}
+
+.mbb-carousel-item-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 30px;
+  background-color: rgba(242, 242, 242, 0.4);
+  border-radius: var(--border-radius);
+}
+
+.mbb-assessment-question {
+  max-width: 600px;
+  background-color: white;
+  padding: 10px;
+  margin: 5px 0px;
+  border-radius: var(--border-radius);
+}

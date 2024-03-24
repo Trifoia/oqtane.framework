@@ -1,0 +1,42 @@
+﻿
+.mbb-journal-tab-menu-container {
+    width: 100%;
+
+    .mbb-journal-current-tab {
+        width: 100%;
+        margin: 0;
+        margin-block: 0.5em;
+        padding-block: 1em;
+        font-weight: var(--mud-typography-h1-weight);
+
+        &::before {
+            mask-image: radial-gradient(rgb(0, 0, 0, 1) 20%, rgba(0, 0, 0, 0) 100%);
+            -webkit-mask-image: radial-gradient(rgb(0, 0, 0, 1) 20%, rgba(0, 0, 0, 0) 100%);
+        }
+
+        > * {
+            padding: 0;
+        }
+    }
+}
+
+.mbb-journal-tab-popover {
+    box-shadow: var(--mud-elevation-4);
+    border-radius: 0;
+
+    .mbb-journal-tab-list {
+        padding: 0;
+    }
+
+    .mbb-journal-tab-menu {
+        margin: 0;
+        margin-block: 0.5em;
+        padding-top: 0.5em;
+
+        button {
+            height: 100%;
+            justify-content: left;
+        }
+    }
+}
+

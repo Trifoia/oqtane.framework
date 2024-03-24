@@ -1,0 +1,58 @@
+﻿.mbb-journey-menu-header {
+    position: relative;
+    flex: 1;
+    aspect-ratio: 1;
+}
+
+.mbb-journey-menu {
+    display: grid;
+    grid-auto-flow: row;
+    grid-auto-rows: 1fr;
+    justify-content: stretch;
+    flex: 1;
+    width: 100%;
+
+    button {
+        border-radius: 0;
+        font-size: var(--mud-typography-subtitle1-size);
+    }
+}
+
+
+.mbb-background-img {
+}
+
+.mbb-foreground-img {
+    height: auto;
+    width: 50%;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+}
+
+.mbb-assessment-container {
+    padding: 10px;
+    text-align: center;
+    width: 100%;
+
+    .mbb-carousel-item {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-evenly;
+        align-items: center;
+        margin-bottom: 60px;    // don't overlap bottom nav buttons
+
+        .mud-input-control {
+            margin: 0 80px;     // don't overlap back/next buttons
+        }
+    }
+}
+
+.mud-radio {
+    width: 100%;
+}
+
+.mbb-content-container {
+    justify-content: center;
+}
+

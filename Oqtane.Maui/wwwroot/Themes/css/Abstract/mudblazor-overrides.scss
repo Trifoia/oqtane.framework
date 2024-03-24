@@ -1,0 +1,42 @@
+﻿/**************************
+***************************
+*    MudBlazor Styles     *
+***************************  
+**************************/
+
+.mbb-mudnavmenu .mud-nav-link {
+    padding: 1rem 0.5rem;
+}
+
+.offcanvas.show,
+.offcanvas-end.show {
+    visibility: visible;
+}
+
+.mud-carousel {
+    .mud-icon-root.mud-svg-icon {
+        fill: var(--mud-palette-primary);
+    }
+}
+
+// accordion panels
+.mud-expand-panel{
+    margin: 0.25rem 0rem;
+}
+
+
+// MudDialog container
+.mud-dialog.mud-dialog-fullscreen .mud-dialog-content {
+    padding: 0;
+}
+
+// MudOverlay
+.mud-overlay .mud-overlay-scrim {
+    overflow: hidden;
+}
+
+@media (min-width: 768px) and (orientation: landscape) {
+    .mud-dialog.mud-dialog-fullscreen {
+        max-width: 50vh;
+    }
+}

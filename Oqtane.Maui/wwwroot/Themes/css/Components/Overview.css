@@ -1,0 +1,14 @@
+﻿.mbb-journal-overview-header {
+  display: flex;
+  justify-content: center;
+  margin: 0.5rem;
+  color: var(--mud-palette-primary);
+  z-index: 1;
+}
+
+.mbb-overview-text {
+  margin: 0.5rem;
+  padding: 10px;
+  border-radius: var(--border-radius);
+  z-index: 1;
+}

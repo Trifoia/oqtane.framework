@@ -64,15 +64,89 @@
 	  <None Remove="Platforms\Android\Resources\xml\network_security_config.xml" />
 	</ItemGroup>
 
+	<ItemGroup>
+	  <None Include="wwwroot\Themes\audio\_dropbox_source.url" />
+	  <None Include="wwwroot\Themes\css\Abstract\abstract.scss" />
+	  <None Include="wwwroot\Themes\css\Abstract\app-header.scss" />
+	  <None Include="wwwroot\Themes\css\Abstract\colors.scss" />
+	  <None Include="wwwroot\Themes\css\Abstract\mudblazor-overrides.scss" />
+	  <None Include="wwwroot\Themes\css\Abstract\oqtane-overrides.scss" />
+	  <None Include="wwwroot\Themes\css\Abstract\typography.scss" />
+	  <None Include="wwwroot\Themes\css\Abstract\utlities.scss" />
+	  <None Include="wwwroot\Themes\css\Abstract\variables.scss" />
+	  <None Include="wwwroot\Themes\css\Components\Accordion.scss" />
+	  <None Include="wwwroot\Themes\css\Components\Achievement.scss" />
+	  <None Include="wwwroot\Themes\css\Components\AchievementShowcase.scss" />
+	  <None Include="wwwroot\Themes\css\Components\Activity1.scss" />
+	  <None Include="wwwroot\Themes\css\Components\ActivityMenu.scss" />
+	  <None Include="wwwroot\Themes\css\Components\AudioPlayer.scss" />
+	  <None Include="wwwroot\Themes\css\Components\BackgroundImage.scss" />
+	  <None Include="wwwroot\Themes\css\Components\BrainstormingTool.scss" />
+	  <None Include="wwwroot\Themes\css\Components\CharacterExamples.scss" />
+	  <None Include="wwwroot\Themes\css\Components\CosmosManagement.scss" />
+	  <None Include="wwwroot\Themes\css\Components\Dashboard.scss" />
+	  <None Include="wwwroot\Themes\css\Components\Hidoku.scss" />
+	  <None Include="wwwroot\Themes\css\Components\HotSpotMap.scss" />
+	  <None Include="wwwroot\Themes\css\Components\Image.scss" />
+	  <None Include="wwwroot\Themes\css\Components\Ink.scss" />
+	  <None Include="wwwroot\Themes\css\Components\Journal.scss" />
+	  <None Include="wwwroot\Themes\css\Components\JournalNavigation.scss" />
+	  <None Include="wwwroot\Themes\css\Components\JournalTabs.scss" />
+	  <None Include="wwwroot\Themes\css\Components\JourneyMenu.scss" />
+	  <None Include="wwwroot\Themes\css\Components\Lottie.scss" />
+	  <None Include="wwwroot\Themes\css\Components\MadLib.scss" />
+	  <None Include="wwwroot\Themes\css\Components\MeetTheCharacters.scss" />
+	  <None Include="wwwroot\Themes\css\Components\MiniMap.scss" />
+	  <None Include="wwwroot\Themes\css\Components\MoodMeter.scss" />
+	  <None Include="wwwroot\Themes\css\Components\NavButtonColumn.scss" />
+	  <None Include="wwwroot\Themes\css\Components\NavCards.scss" />
+	  <None Include="wwwroot\Themes\css\Components\NavigationControl.scss" />
+	  <None Include="wwwroot\Themes\css\Components\Overview.scss" />
+	  <None Include="wwwroot\Themes\css\Components\PickYourJourney.scss" />
+	  <None Include="wwwroot\Themes\css\Components\Prompt.scss" />
+	  <None Include="wwwroot\Themes\css\Components\Showcase.scss" />
+	  <None Include="wwwroot\Themes\css\Components\SiteMenu.scss" />
+	  <None Include="wwwroot\Themes\css\Components\Text.scss" />
+	  <None Include="wwwroot\Themes\css\Components\Title.scss" />
+	  <None Include="wwwroot\Themes\css\Theme.scss" />
+	  <None Include="wwwroot\Themes\images\brainbooster\externalize_character_stories.ink" />
+	  <None Include="wwwroot\Themes\images\Characters\Bing-Bing-Hero.svg" />
+	  <None Include="wwwroot\Themes\images\Characters\BingBing\Bing-Bing-Hero.svg" />
+	  <None Include="wwwroot\Themes\images\Characters\Bowen-Hero.svg" />
+	  <None Include="wwwroot\Themes\images\Characters\Bowen\Bowen-Hero.svg" />
+	  <None Include="wwwroot\Themes\images\Characters\Jennifer-Hero.svg" />
+	  <None Include="wwwroot\Themes\images\Characters\Jennifer\Jennifer-Hero.svg" />
+	  <None Include="wwwroot\Themes\images\Ink\thought-bubble.svg" />
+	  <None Include="wwwroot\Themes\images\Journey\Back.svg" />
+	  <None Include="wwwroot\Themes\images\Journey\Home.svg" />
+	  <None Include="wwwroot\Themes\images\Journey\Next.svg" />
+	  <None Include="wwwroot\Themes\images\lottieplaceholder\_deployed.lnk" />
+	  <None Include="wwwroot\Themes\images\lottieplaceholder\_dropbox_source.url" />
+	  <None Include="wwwroot\Themes\images\lottieplaceholder\_dropbox_source_journals.url" />
+	  <None Include="wwwroot\Themes\images\lottieplaceholder\_dropbox_source_predicting_puzzle.url" />
+	  <None Include="wwwroot\Themes\images\MBB-header-logo.svg" />
+	  <None Include="wwwroot\Themes\ink\Character_K1_Decison_Making_Menu_Inky.ink" />
+	  <None Include="wwwroot\Themes\ink\Character_K2_Brain_Vacation_Inky.ink" />
+	  <None Include="wwwroot\Themes\ink\MB_Predicting_Puzzle_Activity_Version_A_Inky.ink" />
+	  <None Include="wwwroot\Themes\ink\MB_Predicting_Puzzle_Activity_Version_B_Inky.ink" />
+	  <None Include="wwwroot\Themes\ink\MB_Zodiac_Visualization_Activity_Inky.ink" />
+	  <None Include="wwwroot\Themes\ink\TEST_Content_Squares_Power-up_Suggestor_Inky.ink" />
+	  <None Include="wwwroot\Themes\ink\_dropbox_source.url" />
+	  <None Include="wwwroot\Themes\lottie\Lottie_Library_Guide.paper.url" />
+	  <None Include="wwwroot\Themes\lottie\_dropbox_source.url" />
+	</ItemGroup>
+
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="8.0.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="8.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="8.0.3" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="8.0.3" />
     <PackageReference Include="Microsoft.AspNetCore.Localization" Version="2.2.0" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Localization" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Localization" Version="8.0.3" />
+    <PackageReference Include="MudBlazor" Version="6.9.0" />
     <PackageReference Include="System.Net.Http.Json" Version="8.0.0" />
-    <PackageReference Include="Microsoft.Maui.Controls" Version="8.0.3" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="8.0.3" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="8.0.10" />
+    <PackageReference Include="Microsoft.Maui.Controls.Compatibility" Version="8.0.10" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="8.0.10" />
   </ItemGroup>
 
   <ItemGroup>

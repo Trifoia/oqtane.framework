@@ -1,0 +1,23 @@
+﻿.mbb-app-header {
+    position: sticky;
+    top:0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    height: var(--header-height);
+    padding: 0.5rem 1.25rem;
+
+    background-color: var(--header-background);
+    border-bottom-width: 1px;
+    border-bottom-color: var(--header-border);
+
+    z-index: 99;
+}
+
+.mbb-mudnavmenu {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
+}

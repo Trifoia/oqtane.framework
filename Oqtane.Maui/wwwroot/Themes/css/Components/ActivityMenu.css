@@ -1,0 +1,9 @@
+﻿.mbb-content-container {
+  justify-content: flex-end;
+}
+
+.mbb-image {
+  width: 100%;
+  height: auto;
+  z-index: 1;
+}
