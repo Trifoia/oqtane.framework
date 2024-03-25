@@ -24,14 +24,12 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>XSAppIconAssets</key>
-	<string>Assets.xcassets/mbappicon.appiconset</string>
+	<string>Assets.xcassets/appicon.appiconset</string>
 	<key>CFBundleVersion</key>
-	<string>2.0.46</string>
+	<string>2.0.48</string>
 	<key>CFBundleShortVersionString</key>
-	<string>2.0.46</string>
+	<string>2.0.48</string>
 	<key>CFBundleIdentifier</key>
 	<string></string>
-	<key>MinimumOSVersion</key>
-	<string>15.0</string>
 </dict>
 </plist>

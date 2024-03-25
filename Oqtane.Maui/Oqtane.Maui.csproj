@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Razor">
+<Project Sdk="Microsoft.NET.Sdk.Razor">
 	<PropertyGroup>
     <!--<TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('windows'))">$(TargetFrameworks);net8.0-windows10.0.19041.0</TargetFrameworks>-->
 		<!-- Uncomment to also build the tizen app. You will need to install tizen by following this: https://github.com/Samsung/Tizen.NET -->
@@ -65,9 +65,8 @@
 
 	<ItemGroup>
 		<!-- App Icon -->
-		<MauiIcon Include="Resources\AppIcon\mbappicon.svg" Color="#000000" BaseSize="128,128" />
-   
-		<!-- Splash Screen -->
+    <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\mbappiconfg.svg" BaseSize="128,128" color="#000000" />
+    <!-- Splash Screen -->
     <MauiSplashScreen Include="Resources\Splash\splash_screen_2.svg" Color="#000000" BaseSize="236,512" />
 
     <!-- Images -->
