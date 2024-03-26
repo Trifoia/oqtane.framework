@@ -65,7 +65,7 @@
 
 	<ItemGroup>
 		<!-- App Icon -->
-    <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\mbappiconfg.svg" BaseSize="128,128" color="#000000" />
+    <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" BaseSize="1024,1024" color="#000000" />
     <!-- Splash Screen -->
     <MauiSplashScreen Include="Resources\Splash\splash_screen_2.svg" Color="#000000" BaseSize="236,512" />
 
