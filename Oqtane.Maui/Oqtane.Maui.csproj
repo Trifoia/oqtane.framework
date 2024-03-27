@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Razor">
+﻿<Project Sdk="Microsoft.NET.Sdk.Razor">
 	<PropertyGroup>
     <!--<TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('windows'))">$(TargetFrameworks);net8.0-windows10.0.19041.0</TargetFrameworks>-->
 		<!-- Uncomment to also build the tizen app. You will need to install tizen by following this: https://github.com/Samsung/Tizen.NET -->
@@ -38,29 +38,29 @@
 	</PropertyGroup>
 
   <PropertyGroup Condition="'$(TargetFramework)'=='net8.0-ios'">
-    <CodesignKey>Apple Distribution: MindBoba LLC (AC65CKSR77)</CodesignKey>
-    <CodesignProvision>mind boba signing profile</CodesignProvision>
-    <ProvisioningType>manual</ProvisioningType>
+    <CodesignKey>Apple Development: Mark Davis (V8QBZ637RS)</CodesignKey>
+    <CodesignProvision>VS: com.mindboba.mindboba Development</CodesignProvision>
+    <ProvisioningType>automatic</ProvisioningType>
   </PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net8.0-ios|AnyCPU'">
 	  <MtouchUseLlvm>False</MtouchUseLlvm>
-	  <MtouchDebug>True</MtouchDebug>
 	  <ApplicationTitle>MindBoba</ApplicationTitle>
 	  <ApplicationId>com.mindboba.mindboba</ApplicationId>
 	  <ApplicationDisplayVersion>1.0.0</ApplicationDisplayVersion>
-    <BuildIpa>True</BuildIpa>
-	  <IpaPackageName>com.mindboba.mindboba</IpaPackageName>
+	  <BuildIpa>False</BuildIpa>
+    <!--<BuildIpa>True</BuildIpa>-->
+	  <!--<IpaPackageName>com.mindboba.mindboba</IpaPackageName>-->
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net8.0-ios|AnyCPU'">
 	  <MtouchUseLlvm>True</MtouchUseLlvm>
-	  <MtouchDebug>True</MtouchDebug>
 	  <ApplicationTitle>MindBoba</ApplicationTitle>
 	  <ApplicationId>com.mindboba.mindboba</ApplicationId>
 	  <ApplicationDisplayVersion>1.0.0</ApplicationDisplayVersion>
-	  <BuildIpa>True</BuildIpa>
-	  <IpaPackageName>com.mindboba.mindboba</IpaPackageName>
+	  <BuildIpa>False</BuildIpa>
+	  <!--<BuildIpa>True</BuildIpa>-->
+	  <!--<IpaPackageName>com.mindboba.mindboba</IpaPackageName>-->
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -103,5 +103,7 @@
     <ProjectReference Include="..\Oqtane.Client\Oqtane.Client.csproj" />
     <ProjectReference Include="..\Oqtane.Shared\Oqtane.Shared.csproj" />
   </ItemGroup>
+
+  <ProjectExtensions><VisualStudio><UserProperties XamarinHotReloadDebuggerTimeoutExceptionOqtaneMauiHideInfoBar="True" /></VisualStudio></ProjectExtensions>
 
 </Project>
