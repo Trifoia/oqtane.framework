@@ -41,9 +41,9 @@
 	</PropertyGroup>
 
   <PropertyGroup Condition="'$(TargetFramework)'=='net8.0-ios'">
-    <CodesignKey>Apple Development: Mark Davis (V8QBZ637RS)</CodesignKey>
-    <CodesignProvision>VS: com.mindboba.mindboba Development</CodesignProvision>
-    <ProvisioningType>automatic</ProvisioningType>
+    <CodesignKey>Apple Distribution: MindBoba LLC (AC65CKSR77)</CodesignKey>
+    <CodesignProvision>mind boba signing profile</CodesignProvision>
+    <ProvisioningType>manual</ProvisioningType>
   </PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net8.0-ios|AnyCPU'">
@@ -51,7 +51,7 @@
 	  <ApplicationTitle>MindBoba</ApplicationTitle>
 	  <ApplicationId>com.mindboba.mindboba</ApplicationId>
 	  <ApplicationDisplayVersion>1.0.0</ApplicationDisplayVersion>
-    <BuildIpa>False</BuildIpa>
+    <BuildIpa>True</BuildIpa>
     <IpaPackageName>com.mindboba.mindboba</IpaPackageName>
 	</PropertyGroup>
 
@@ -60,7 +60,7 @@
 	  <ApplicationTitle>MindBoba</ApplicationTitle>
 	  <ApplicationId>com.mindboba.mindboba</ApplicationId>
 	  <ApplicationDisplayVersion>1.0.0</ApplicationDisplayVersion>
-	  <BuildIpa>False</BuildIpa>
+	  <BuildIpa>True</BuildIpa>
 	  <IpaPackageName>com.mindboba.mindboba</IpaPackageName>
 	</PropertyGroup>
 
