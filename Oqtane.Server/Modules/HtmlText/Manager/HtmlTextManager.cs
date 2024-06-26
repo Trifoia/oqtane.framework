@@ -48,9 +48,9 @@ namespace Oqtane.Modules.HtmlText.Manager
 
         public bool Install(Tenant tenant, string version)
         {
-            if (tenant.DBType == Constants.DefaultDBType && version == "1.0.1")
+            if (tenant.DBType == Constants.DefaultDBType && version == "1.0.2")
             {
-                // version 1.0.0 used SQL scripts rather than migrations, so we need to seed the migration history table
+                // version 1.0.2 used SQL scripts rather than migrations, so we need to seed the migration history table
                 _sqlRepository.ExecuteNonQuery(tenant, MigrationUtils.BuildInsertScript("HtmlText.01.00.00.00"));
             }
             return Migrate(new HtmlTextContext(_DBContextDependencies), tenant, MigrationType.Up);

@@ -24,10 +24,10 @@ namespace Oqtane.Migrations.Tenant
             //Finish SqlServer Migration from DbUp
             if (ActiveDatabase.Name == "SqlServer")
             {
-                //Version 1.0.0
+                //Version 1.0.2
                 InsertVersion(migrationBuilder, "01.00.00", "Oqtane.Scripts.Master.00.09.00.00.sql");
 
-                //Version 1.0.1
+                //Version 1.0.2
                 InsertVersion(migrationBuilder, "01.00.01", "Oqtane.Scripts.Master.01.00.01.00.sql");
 
                 //Version 1.0.2
