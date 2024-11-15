@@ -100,6 +100,7 @@ namespace Oqtane
                 options.Cookie.Name = Constants.AntiForgeryTokenCookieName;
                 options.Cookie.SameSite = SameSiteMode.Strict;
                 options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+                options.Cookie.HttpOnly = true;
             });
 
             services.AddIdentityCore<IdentityUser>(options => { })
@@ -158,7 +159,7 @@ namespace Oqtane
                    }
                }).AddHubOptions(options =>
                {
-                   options.MaximumReceiveMessageSize = null; // no limit (for large amnounts of data ie. textarea components)
+                   options.MaximumReceiveMessageSize = null; // no limit (for large amounts of data ie. textarea components)
                })
                .AddInteractiveWebAssemblyComponents();
 
@@ -216,6 +217,7 @@ namespace Oqtane
             app.UseCors();
             app.UseAuthentication();
             app.UseAuthorization();
+            app.UseAntiforgery();
 
             if (_useSwagger)
             {

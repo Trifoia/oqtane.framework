@@ -16,6 +16,7 @@
 @using Oqtane.Shared
 @using Oqtane.Themes
 @using Oqtane.Extensions
+@using System.Globalization
 @inject NavigationManager NavigationManager
 @inject IAntiforgery Antiforgery
 @inject IConfigManager ConfigManager
@@ -39,7 +40,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <base href="/" />
         <link rel="stylesheet" href="css/app.css" />
-        @if (!string.IsNullOrEmpty(_PWAScript))
+        @if (_scripts.Contains("PWA Manifest"))
         {
             <link id="app-manifest" rel="manifest" />
         }
@@ -68,20 +69,13 @@
                 <Routes PageState="@_pageState" RenderMode="@_renderMode" Runtime="@_runtime" AntiForgeryToken="@_antiForgeryToken" AuthorizationToken="@_authorizationToken" Platform="@_platform" @rendermode="InteractiveRenderMode.GetInteractiveRenderMode(_runtime, _prerender)" />
             }
 
-            @if (!string.IsNullOrEmpty(_reconnectScript))
-            {
-                @((MarkupString)_reconnectScript)
-            }
-            @if (!string.IsNullOrEmpty(_PWAScript))
-            {
-                @((MarkupString)_PWAScript)
-            }
-            @((MarkupString)_bodyResources)
-
+            <script src="_framework/blazor.web.js"></script>
             <script src="js/app.js"></script>
             <script src="js/loadjs.min.js"></script>
             <script src="js/interop.js"></script>
-            <script src="_framework/blazor.web.js"></script>
+
+            @((MarkupString)_scripts)
+            @((MarkupString)_bodyResources)
         }
         else
         {
@@ -105,8 +99,7 @@
     private string _headResources = "";
     private string _bodyResources = "";
     private string _styleSheets = "";
-    private string _PWAScript = "";
-    private string _reconnectScript = "";
+    private string _scripts = "";
     private string _message = "";
     private PageState _pageState;
 
@@ -139,6 +132,7 @@
                     _renderMode = site.RenderMode;
                     _runtime = site.Runtime;
                     _prerender = site.Prerender;
+                    var modules = new List<Module>();
 
                     Route route = new Route(url, alias.Path);
                     var page = site.Pages.FirstOrDefault(item => item.Path.Equals(route.PagePath, StringComparison.OrdinalIgnoreCase));
@@ -163,6 +157,10 @@
                     {
                         HandlePageNotFound(site, page, route);
                     }
+                    else
+                    {
+                        modules = await SiteService.GetModulesAsync(site.SiteId, page.PageId);
+                    }
 
                     if (site.VisitorTracking)
                     {
@@ -175,57 +173,57 @@
                         CreateJwtToken(alias);
                     }
 
-                    // include stylesheets to prevent FOUC
-                    var resources = GetPageResources(alias, site, page, int.Parse(route.ModuleId), route.Action);
+                    // includes resources
+                    var resources = await GetPageResources(alias, site, page, modules, int.Parse(route.ModuleId, CultureInfo.InvariantCulture), route.Action);
                     ManageStyleSheets(resources);
+                    ManageScripts(resources, alias);
 
-                    // scripts
-                    if (_renderMode == RenderModes.Static)
-                    {
-                        ManageScripts(resources, alias);
-                    }
-                    if (_renderMode == RenderModes.Interactive && _runtime == Runtimes.Server)
-                    {
-                        _reconnectScript = CreateReconnectScript();
-                    }
+                    // generate scripts
                     if (site.PwaIsEnabled && site.PwaAppIconFileId != null && site.PwaSplashIconFileId != null)
                     {
-                        _PWAScript = CreatePWAScript(alias, site, route);
+                        _scripts += CreatePWAScript(alias, site, route);
                     }
+                    @if (_renderMode == RenderModes.Static)
+                    {
+                        _scripts += CreateScrollPositionScript();
+                    }
+
                     _headResources += ParseScripts(site.HeadContent);
                     _bodyResources += ParseScripts(site.BodyContent);
 
                     // set culture if not specified
-                    string culture = Context.Request.Cookies[CookieRequestCultureProvider.DefaultCookieName];
-                    if (culture == null)
+                    string cultureCookie = Context.Request.Cookies[Shared.CookieRequestCultureProvider.DefaultCookieName];
+                    if (cultureCookie == null)
                     {
                         // get default language for site
                         if (site.Languages.Any())
                         {
                             // use default language if specified otherwise use first language in collection
-                            culture = (site.Languages.Where(l => l.IsDefault).SingleOrDefault() ?? site.Languages.First()).Code;
+                            cultureCookie = (site.Languages.Where(l => l.IsDefault).SingleOrDefault() ?? site.Languages.First()).Code;
                         }
                         else
                         {
-                            culture = LocalizationManager.GetDefaultCulture();
+                            // fallback language
+                            cultureCookie = LocalizationManager.GetDefaultCulture();
                         }
-                        SetLocalizationCookie(culture);
+                        // convert language code to culture cookie format (ie. "c=en|uic=en")
+                        cultureCookie = Shared.CookieRequestCultureProvider.MakeCookieValue(new Models.RequestCulture(cultureCookie));
+                        SetLocalizationCookie(cultureCookie);
                     }
 
                     // set language for page
-                    if (!string.IsNullOrEmpty(culture))
+                    if (!string.IsNullOrEmpty(cultureCookie))
                     {
-                        // localization cookie value in form of c=en|uic=en
-                        _language = culture.Split('|')[0];
-                        _language = _language.Replace("c=", "");
+                        _language = Shared.CookieRequestCultureProvider.ParseCookieValue(cultureCookie).Culture.Name;
                     }
 
-                    // create initial PageState 
+                    // create initial PageState
                     _pageState = new PageState
                     {
                         Alias = alias,
                         Site = site,
                         Page = page,
+                        Modules = modules,
                         User = null,
                         Uri = new Uri(url, UriKind.Absolute),
                         Route = route,
@@ -329,14 +327,26 @@
             int? userid = Context.User.UserId();
             userid = (userid == -1) ? null : userid;
 
-            // check if cookie already exists
+            // get cookie value
+            var visitorCookieName = Constants.VisitorCookiePrefix + SiteId.ToString();
+            var visitorCookieValue = Context.Request.Cookies[visitorCookieName];
+            DateTime expiry = DateTime.MinValue;
+            if (visitorCookieValue != null && visitorCookieValue.Contains("|"))
+            {
+                var values = visitorCookieValue.Split('|');
+                int.TryParse(values[0], out _visitorId);
+                DateTime.TryParseExact(values[1], "M/d/yyyy hh:mm:ss tt", CultureInfo.InvariantCulture, DateTimeStyles.None, out expiry);
+            }
+            else // legacy cookie format
+            {
+                int.TryParse(visitorCookieValue, out _visitorId);
+            }
+            bool setcookie = false;
             Visitor visitor = null;
-            bool addcookie = false;
-            var VisitorCookie = Constants.VisitorCookiePrefix + SiteId.ToString();
-            if (!int.TryParse(Context.Request.Cookies[VisitorCookie], out _visitorId))
+
+            if (_visitorId <= 0)
             {
                 // if enabled use IP Address correlation
-                _visitorId = -1;
                 var correlate = bool.Parse(settings.GetValue("VisitorCorrelation", "true"));
                 if (correlate)
                 {
@@ -344,12 +354,12 @@
                     if (visitor != null)
                     {
                         _visitorId = visitor.VisitorId;
-                        addcookie = true;
+                        setcookie = true;
                     }
                 }
             }
 
-            if (_visitorId == -1)
+            if (_visitorId <= 0)
             {
                 // create new visitor
                 visitor = new Visitor();
@@ -365,52 +375,62 @@
                 visitor.VisitedOn = DateTime.UtcNow;
                 visitor = VisitorRepository.AddVisitor(visitor);
                 _visitorId = visitor.VisitorId;
-                addcookie = true;
+                setcookie = true;
             }
             else
             {
-                if (visitor == null)
+                // check expiry
+                if (DateTime.UtcNow > expiry)
                 {
-                    // get visitor if it was not previously loaded
-                    visitor = VisitorRepository.GetVisitor(_visitorId);
-                }
-                if (visitor != null)
-                {
-                    // update visitor
-                    visitor.IPAddress = _remoteIPAddress;
-                    visitor.UserAgent = useragent;
-                    visitor.Language = language;
-                    visitor.Url = url;
-                    if (!string.IsNullOrEmpty(referrer))
+                    if (visitor == null)
                     {
-                        visitor.Referrer = referrer;
+                        // get visitor if not previously loaded
+                        visitor = VisitorRepository.GetVisitor(_visitorId);
                     }
-                    if (userid != null)
+                    if (visitor != null)
                     {
-                        visitor.UserId = userid;
+                        // update visitor
+                        visitor.IPAddress = _remoteIPAddress;
+                        visitor.UserAgent = useragent;
+                        visitor.Language = language;
+                        visitor.Url = url;
+                        if (!string.IsNullOrEmpty(referrer))
+                        {
+                            visitor.Referrer = referrer;
+                        }
+                        if (userid != null)
+                        {
+                            visitor.UserId = userid;
+                        }
+                        visitor.Visits += 1;
+                        visitor.VisitedOn = DateTime.UtcNow;
+                        VisitorRepository.UpdateVisitor(visitor);
+                        setcookie = true;
                     }
-                    visitor.Visits += 1;
-                    visitor.VisitedOn = DateTime.UtcNow;
-                    VisitorRepository.UpdateVisitor(visitor);
-                }
-                else
-                {
-                    // remove cookie if VisitorId does not exist
-                    Context.Response.Cookies.Delete(VisitorCookie);
+                    else
+                    {
+                        // remove cookie if visitor does not exist
+                        Context.Response.Cookies.Delete(visitorCookieName);
+                    }
                 }
             }
 
-            // append cookie
-            if (addcookie)
+            // set cookie
+            if (setcookie)
             {
+                expiry = DateTime.UtcNow.AddMinutes(int.Parse(settings.GetValue("VisitorDuration", "5")));
+
                 Context.Response.Cookies.Append(
-                    VisitorCookie,
-                    _visitorId.ToString(),
+                    visitorCookieName,
+                    $"{_visitorId}|{expiry.ToString("M/d/yyyy hh:mm:ss tt", CultureInfo.InvariantCulture)}",
                     new CookieOptions()
-                        {
-                            Expires = DateTimeOffset.UtcNow.AddYears(1),
-                            IsEssential = true
-                        }
+                    {
+                        Expires = DateTimeOffset.UtcNow.AddYears(10),
+                        IsEssential = true,
+                        SameSite = Microsoft.AspNetCore.Http.SameSiteMode.Lax, // Set SameSite attribute
+                        Secure = true, // Ensure the cookie is only sent over HTTPS
+                        HttpOnly = true // Optional: Helps mitigate XSS attacks
+                    }
                 );
             }
         }
@@ -432,7 +452,7 @@
 
     private string CreatePWAScript(Alias alias, Site site, Route route)
     {
-        return
+        return Environment.NewLine +
         "<script>" + Environment.NewLine +
         "    // PWA Manifest" + Environment.NewLine +
         "    setTimeout(() => {" + Environment.NewLine +
@@ -468,33 +488,33 @@
         "            console.log('ServiceWorker Registration Failed ', err);" + Environment.NewLine +
         "        });" + Environment.NewLine +
         "    };" + Environment.NewLine +
-        "</script>";
+        "</script>" + Environment.NewLine;
     }
 
-    private string CreateReconnectScript()
+    private string CreateScrollPositionScript()
     {
-        return
+        return Environment.NewLine +
         "<script>" + Environment.NewLine +
-        "    // Blazor Server Reconnect" + Environment.NewLine +
-        "    new MutationObserver((mutations, observer) => {" + Environment.NewLine +
-        "        if (document.querySelector('#components-reconnect-modal h5 a')) {" + Environment.NewLine +
-        "            async function attemptReload() {" + Environment.NewLine +
-        "                await fetch('');" + Environment.NewLine +
-        "                location.reload();" + Environment.NewLine +
+        "    // Blazor Static Rendering Scroll Position" + Environment.NewLine +
+        "    window.interceptNavigation = () => {" + Environment.NewLine +
+        "        let currentUrl = window.location.pathname;" + Environment.NewLine +
+        "        Blazor.addEventListener('enhancedload', () => {" + Environment.NewLine +
+        "            let newUrl = window.location.pathname;" + Environment.NewLine +
+        "            if (currentUrl !== newUrl || window.location.hash === '#top') {" + Environment.NewLine +
+        "                window.scrollTo({ top: 0, left: 0, behavior: 'instant' });" + Environment.NewLine +
         "            }" + Environment.NewLine +
-        "            observer.disconnect();" + Environment.NewLine +
-        "            attemptReload();" + Environment.NewLine +
-        "            setInterval(attemptReload, 5000);" + Environment.NewLine +
-        "        }" + Environment.NewLine +
-        "    }).observe(document.body, { childList: true, subtree: true });" + Environment.NewLine +
-        "</script>";
+        "            currentUrl = newUrl;" + Environment.NewLine +
+        "        });" + Environment.NewLine +
+        "    };" + Environment.NewLine +
+        "    document.onload += window.interceptNavigation();" + Environment.NewLine +
+        "</script>" + Environment.NewLine;
     }
 
     private string ParseScripts(string content)
     {
-        // iterate scripts
         var scripts = "";
-        if (!string.IsNullOrEmpty(content))
+        // in interactive render mode, parse scripts from content and inject into page
+        if (_renderMode == RenderModes.Interactive && !string.IsNullOrEmpty(content))
         {
             var index = content.IndexOf("<script");
             while (index >= 0)
@@ -536,12 +556,21 @@
                     ((!string.IsNullOrEmpty(resource.Integrity)) ? " integrity=\"" + resource.Integrity + "\"" : "") +
                     ((!string.IsNullOrEmpty(resource.CrossOrigin)) ? " crossorigin=\"" + resource.CrossOrigin + "\"" : "") +
                     ((resource.ES6Module) ? " type=\"module\"" : "") +
-                    " src =\"" + url + "\"></script>"; // src at end of element due to enhanced navigation patch algorithm
+                    " src=\"" + url + "\"></script>"; // src at end of element due to enhanced navigation patch algorithm
             }
             else
             {
                 // use custom element which can execute script on every page transition
-                return "<page-script src=\"" + resource.Url + "\"></page-script>";
+                @if (string.IsNullOrEmpty(resource.Integrity) && string.IsNullOrEmpty(resource.CrossOrigin))
+                {
+                    return "<page-script src=\"" + resource.Url + "\"></page-script>";
+                }
+                else
+                {
+                    // use modulepreload for external resources
+                    return "<link rel=\"modulepreload\" href=\"" + resource.Url + "\" integrity=\"" + resource.Integrity + "\" crossorigin=\"" + resource.CrossOrigin + "\" />\n" +
+                        "<page-script src=\"" + resource.Url + "\"></page-script>";
+                }
             }
         }
         else
@@ -551,14 +580,24 @@
         }
     }
 
-    private void SetLocalizationCookie(string culture)
+    private void SetLocalizationCookie(string cookieValue)
     {
+        var cookieOptions = new Microsoft.AspNetCore.Http.CookieOptions
+        {
+            Expires = DateTimeOffset.UtcNow.AddYears(1),
+            SameSite = Microsoft.AspNetCore.Http.SameSiteMode.Lax, // Set SameSite attribute
+            Secure = true, // Ensure the cookie is only sent over HTTPS
+            HttpOnly = false // cookie is updated using JS Interop in Interactive render mode
+        };
+
         Context.Response.Cookies.Append(
-            CookieRequestCultureProvider.DefaultCookieName,
-            CookieRequestCultureProvider.MakeCookieValue(new RequestCulture(culture)));
+            Shared.CookieRequestCultureProvider.DefaultCookieName,
+            cookieValue,
+            cookieOptions
+        );
     }
 
-    private List<Resource> GetPageResources(Alias alias, Site site, Page page, int moduleid, string action)
+    private async Task<List<Resource>> GetPageResources(Alias alias, Site site, Page page, List<Module> modules, int moduleid, string action)
     {
         var resources = new List<Resource>();
 
@@ -566,13 +605,13 @@
         var theme = site.Themes.FirstOrDefault(item => item.Themes.Any(item => item.TypeName == themeType));
         if (theme != null)
         {
-            resources = AddResources(resources, theme.Resources, ResourceLevel.Page, alias, "Themes", Utilities.GetTypeName(theme.ThemeName));
+            resources = AddResources(resources, theme.Resources, ResourceLevel.Page, alias, "Themes", Utilities.GetTypeName(theme.ThemeName), site.RenderMode);
         }
         else
         {
             // fallback to default Oqtane theme
             theme = site.Themes.FirstOrDefault(item => item.Themes.Any(item => item.TypeName == Constants.DefaultTheme));
-            resources = AddResources(resources, theme.Resources, ResourceLevel.Page, alias, "Themes", Utilities.GetTypeName(theme.ThemeName));
+            resources = AddResources(resources, theme.Resources, ResourceLevel.Page, alias, "Themes", Utilities.GetTypeName(theme.ThemeName), site.RenderMode);
         }
         var type = Type.GetType(themeType);
         if (type != null)
@@ -580,16 +619,26 @@
             var obj = Activator.CreateInstance(type) as IThemeControl;
             if (obj != null)
             {
-                resources = AddResources(resources, obj.Resources, ResourceLevel.Page, alias, "Themes", type.Namespace);
+                resources = AddResources(resources, obj.Resources, ResourceLevel.Page, alias, "Themes", type.Namespace, site.RenderMode);
+            }
+        }
+        // theme settings components are dynamically loaded within the framework Page Management module
+        if (page.Path == "admin/pages" && action.ToLower() == "edit" && theme != null && !string.IsNullOrEmpty(theme.ThemeSettingsType))
+        {
+            var settingsType = Type.GetType(theme.ThemeSettingsType);
+            if (settingsType != null)
+            {
+                var objSettings = Activator.CreateInstance(settingsType) as IModuleControl;
+                resources = AddResources(resources, objSettings.Resources, ResourceLevel.Module, alias, "Modules", settingsType.Namespace, site.RenderMode);
             }
         }
 
-        foreach (Module module in site.Modules.Where(item => item.PageId == page.PageId || item.ModuleId == moduleid))
+        foreach (Module module in modules.Where(item => item.PageId == page.PageId || item.ModuleId == moduleid))
         {
             var typename = "";
             if (module.ModuleDefinition != null)
             {
-                resources = AddResources(resources, module.ModuleDefinition.Resources, ResourceLevel.Module, alias, "Modules", Utilities.GetTypeName(module.ModuleDefinition.ModuleDefinitionName));
+                resources = AddResources(resources, module.ModuleDefinition.Resources, ResourceLevel.Module, alias, "Modules", Utilities.GetTypeName(module.ModuleDefinition.ModuleDefinitionName), site.RenderMode);
 
                 // handle default action
                 if (action == Constants.DefaultAction && !string.IsNullOrEmpty(module.ModuleDefinition.DefaultAction))
@@ -625,63 +674,93 @@
 
             // ensure component exists and implements IModuleControl
             module.ModuleType = "";
-            Type moduletype = Type.GetType(typename, false, true); // case insensitive
+            var moduletype = Type.GetType(typename, false, true); // case insensitive
             if (moduletype != null && moduletype.GetInterfaces().Contains(typeof(IModuleControl)))
             {
                 module.ModuleType = Utilities.GetFullTypeName(moduletype.AssemblyQualifiedName); // get actual type name
             }
             if (moduletype != null && module.ModuleType != "")
             {
-                var obj = Activator.CreateInstance(moduletype) as IModuleControl;
-                if (obj != null)
+                var moduleobject = Activator.CreateInstance(moduletype) as IModuleControl;
+                if (moduleobject != null)
                 {
-                    resources = AddResources(resources, obj.Resources, ResourceLevel.Module, alias, "Modules", moduletype.Namespace);
+                    resources = AddResources(resources, moduleobject.Resources, ResourceLevel.Module, alias, "Modules", moduletype.Namespace, site.RenderMode);
+
+                    // settings components are dynamically loaded within the framework Settings module
                     if (action.ToLower() == "settings" && module.ModuleDefinition != null)
                     {
-                        // settings components are embedded within a framework settings module
-                        moduletype = Type.GetType(module.ModuleDefinition.ControlTypeTemplate.Replace(Constants.ActionToken, action), false, true);
+                        // module settings component
+                        var settingsType = "";
+                        if (!string.IsNullOrEmpty(module.ModuleDefinition.SettingsType))
+                        {
+                            // module settings type explicitly declared in IModule interface
+                            settingsType = module.ModuleDefinition.SettingsType;
+                        }
+                        else
+                        {
+                            // legacy support - module settings type determined by convention
+                            settingsType = module.ModuleDefinition.ControlTypeTemplate.Replace(Constants.ActionToken, action);
+                        }
+                        moduletype = Type.GetType(settingsType, false, true);
                         if (moduletype != null)
                         {
-                            obj = Activator.CreateInstance(moduletype) as IModuleControl;
-                            resources = AddResources(resources, obj.Resources, ResourceLevel.Module, alias, "Modules", moduletype.Namespace);
+                            moduleobject = Activator.CreateInstance(moduletype) as IModuleControl;
+                            resources = AddResources(resources, moduleobject.Resources, ResourceLevel.Module, alias, "Modules", moduletype.Namespace, site.RenderMode);
+                        }
+
+                        // container settings component
+                        if (theme != null && !string.IsNullOrEmpty(theme.ContainerSettingsType))
+                        {
+                            moduletype = Type.GetType(theme.ContainerSettingsType);
+                            if (moduletype != null)
+                            {
+                                moduleobject = Activator.CreateInstance(moduletype) as IModuleControl;
+                                resources = AddResources(resources, moduleobject.Resources, ResourceLevel.Module, alias, "Modules", moduletype.Namespace, site.RenderMode);
+                            }
                         }
                     }
                 }
             }
         }
 
-        // site level resources for modules in site
-        var modules = site.Modules.GroupBy(item => item.ModuleDefinition?.ModuleDefinitionName).Select(group => group.First()).ToList();
-        foreach (var module in modules)
+        if (site.RenderMode == RenderModes.Interactive)
         {
-            if (module.ModuleDefinition?.Resources != null)
+            // site level resources for modules in site
+            var sitemodules = await SiteService.GetModulesAsync(site.SiteId, -1);
+            foreach (var module in sitemodules.GroupBy(item => item.ModuleDefinition?.ModuleDefinitionName).Select(group => group.First()).ToList())
             {
-                resources = AddResources(resources, module.ModuleDefinition.Resources.Where(item => item.Level == ResourceLevel.Site).ToList(), ResourceLevel.Module, alias, "Modules", Utilities.GetTypeName(module.ModuleDefinition.ModuleDefinitionName));
+                if (module.ModuleDefinition?.Resources != null)
+                {
+                    resources = AddResources(resources, module.ModuleDefinition.Resources.Where(item => item.ResourceType == ResourceType.Script && item.Level == ResourceLevel.Site).ToList(), ResourceLevel.Module, alias, "Modules", Utilities.GetTypeName(module.ModuleDefinition.ModuleDefinitionName), site.RenderMode);
+                }
             }
         }
 
         return resources;
     }
 
-    private List<Resource> AddResources(List<Resource> pageresources, List<Resource> resources, ResourceLevel level, Alias alias, string type, string name)
+    private List<Resource> AddResources(List<Resource> pageresources, List<Resource> resources, ResourceLevel level, Alias alias, string type, string name, string rendermode)
     {
         if (resources != null)
         {
             foreach (var resource in resources)
             {
-                if (resource.Url.StartsWith("~"))
+                if (rendermode == RenderModes.Static || resource.ResourceType == ResourceType.Stylesheet || resource.Level == ResourceLevel.Site)
                 {
-                    resource.Url = resource.Url.Replace("~", "/" + type + "/" + name + "/").Replace("//", "/");
-                }
-                if (!resource.Url.Contains("://") && alias.BaseUrl != "" && !resource.Url.StartsWith(alias.BaseUrl))
-                {
-                    resource.Url = alias.BaseUrl + resource.Url;
-                }
+                    if (resource.Url.StartsWith("~"))
+                    {
+                        resource.Url = resource.Url.Replace("~", "/" + type + "/" + name + "/").Replace("//", "/");
+                    }
+                    if (!resource.Url.Contains("://") && alias.BaseUrl != "" && !resource.Url.StartsWith(alias.BaseUrl))
+                    {
+                        resource.Url = alias.BaseUrl + resource.Url;
+                    }
 
-                // ensure resource does not exist already
-                if (!pageresources.Exists(item => item.Url.ToLower() == resource.Url.ToLower()))
-                {
-                    pageresources.Add(resource.Clone(level, name));
+                    // ensure resource does not exist already
+                    if (!pageresources.Exists(item => item.Url.ToLower() == resource.Url.ToLower()))
+                    {
+                        pageresources.Add(resource.Clone(level, name));
+                    }
                 }
             }
         }
@@ -692,6 +771,7 @@
     {
         if (resources != null)
         {
+            // include stylesheets to prevent FOUC
             string batch = DateTime.UtcNow.ToString("yyyyMMddHHmmssfff");
             int count = 0;
             foreach (var resource in resources.Where(item => item.ResourceType == ResourceType.Stylesheet))

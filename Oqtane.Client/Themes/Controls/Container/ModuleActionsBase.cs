@@ -7,11 +7,9 @@ using Oqtane.Models;
 using Oqtane.Security;
 using Oqtane.Services;
 using Oqtane.Shared;
-using Oqtane.UI;
 using System.Net;
-
-// ReSharper disable UnassignedGetOnlyAutoProperty
-// ReSharper disable MemberCanBePrivate.Global
+using Microsoft.Extensions.Localization;
+using Oqtane.UI;
 
 namespace Oqtane.Themes.Controls
 {
@@ -20,6 +18,7 @@ namespace Oqtane.Themes.Controls
         [Inject] public NavigationManager NavigationManager { get; set; }
         [Inject] public IPageModuleService PageModuleService { get; set; }
         [Inject] public IModuleService ModuleService { get; set; }
+        [Inject] public IStringLocalizer<ModuleActionsBase> Localizer { get; set; }
 
         [Parameter] public PageState PageState { get; set; }
         [Parameter] public Module ModuleState { get; set; }
@@ -37,30 +36,30 @@ namespace Oqtane.Themes.Controls
 
             if (PageState.EditMode && UserSecurity.IsAuthorized(PageState.User, PermissionNames.Edit, PageState.Page.PermissionList))
             {
-                actionList.Add(new ActionViewModel { Icon = Icons.Cog, Name = "Manage Settings", Action = async (u, m) => await Settings(u, m) });
+                actionList.Add(new ActionViewModel { Icon = Icons.Cog, Name = Localizer["ManageSettings"], Action = async (u, m) => await Settings(u, m) });
 
                 if (UserSecurity.ContainsRole(ModuleState.PermissionList, PermissionNames.View, RoleNames.Everyone))
                 {
-                    actionList.Add(new ActionViewModel { Icon = Icons.CircleX, Name = "Unpublish Module", Action = async (s, m) => await Unpublish(s, m) });
+                    actionList.Add(new ActionViewModel { Icon = Icons.CircleX, Name = Localizer["UnpublishModule"], Action = async (s, m) => await Unpublish(s, m) });
                 }
                 else
                 {
-                    actionList.Add(new ActionViewModel { Icon = Icons.CircleCheck, Name = "Publish Module", Action = async (s, m) => await Publish(s, m) });
+                    actionList.Add(new ActionViewModel { Icon = Icons.CircleCheck, Name = Localizer["PublishModule"], Action = async (s, m) => await Publish(s, m) });
                 }
-                actionList.Add(new ActionViewModel { Icon = Icons.Trash, Name = "Delete Module", Action = async (u, m) => await DeleteModule(u, m) });
+                actionList.Add(new ActionViewModel { Icon = Icons.Trash, Name = Localizer["DeleteModule"], Action = async (u, m) => await DeleteModule(u, m) });
 
                 if (ModuleState.ModuleDefinition != null && ModuleState.ModuleDefinition.IsPortable)
                 {
                     actionList.Add(new ActionViewModel { Name = "" });
-                    actionList.Add(new ActionViewModel { Icon = Icons.CloudUpload, Name = "Import Content", Action = async (u, m) => await EditUrlAsync(u, m.ModuleId, "Import") });
-                    actionList.Add(new ActionViewModel { Icon = Icons.CloudDownload, Name = "Export Content", Action = async (u, m) => await EditUrlAsync(u, m.ModuleId, "Export") });
+                    actionList.Add(new ActionViewModel { Icon = Icons.CloudUpload, Name = Localizer["ImportContent"], Action = async (u, m) => await EditUrlAsync(u, m.ModuleId, "Import") });
+                    actionList.Add(new ActionViewModel { Icon = Icons.CloudDownload, Name = Localizer["ExportContent"], Action = async (u, m) => await EditUrlAsync(u, m.ModuleId, "Export") });
                 }
 
                 actionList.Add(new ActionViewModel { Name = "" });
 
                 if (ModuleState.PaneModuleIndex > 0)
                 {
-                    actionList.Add(new ActionViewModel { Icon = Icons.DataTransferUpload, Name = "Move To Top", Action = async (s, m) => await MoveTop(s, m) });
+                    actionList.Add(new ActionViewModel { Icon = Icons.DataTransferUpload, Name = Localizer["MoveToTop"], Action = async (s, m) => await MoveTop(s, m) });
                 }
 
                 if (ModuleState.PaneModuleIndex > 0)
@@ -90,20 +89,21 @@ namespace Oqtane.Themes.Controls
             return actionList;
         }
 
-        private async Task<string> EditUrlAsync(string url, int moduleId, string import)
-        {
-            await Task.Yield();
-            return Utilities.EditUrl(PageState.Alias.Path, PageState.Page.Path, moduleId, import, "");
-        }
-
         protected async Task ModuleAction(ActionViewModel action)
         {
             if (PageState.EditMode && UserSecurity.IsAuthorized(PageState.User, PermissionNames.Edit, ModuleState.PermissionList))
             {
-                PageModule pagemodule = await PageModuleService.GetPageModuleAsync(ModuleState.PageModuleId);
+                var url = NavigationManager.Uri.Substring(NavigationManager.BaseUri.Length - 1);
+                if (!url.Contains("edit="))
+                {
+                    url += (!url.Contains("?") ? "?" : "&") + "edit=true";
+                }
+                if (!url.Contains("refresh="))
+                {
+                    url += (!url.Contains("?") ? "?" : "&") + "refresh=true";
+                }
 
-                string url = Utilities.NavigateUrl(PageState.Alias.Path, PageState.Page.Path, "edit=true&refresh");
-
+                var pagemodule = await PageModuleService.GetPageModuleAsync(ModuleState.PageModuleId);
                 if (action.Action != null)
                 {
                     url = await action.Action(url, pagemodule);
@@ -113,31 +113,10 @@ namespace Oqtane.Themes.Controls
             }
         }
 
-        private async Task<string> MoveToPane(string url, string newPane, PageModule pagemodule)
+        private Task<string> Settings(string url, PageModule pagemodule)
         {
-            string oldPane = pagemodule.Pane;
-            pagemodule.Pane = newPane;
-            pagemodule.Order = int.MaxValue; // add to bottom of pane
-            await PageModuleService.UpdatePageModuleAsync(pagemodule);
-            await PageModuleService.UpdatePageModuleOrderAsync(pagemodule.PageId, pagemodule.Pane);
-            await PageModuleService.UpdatePageModuleOrderAsync(pagemodule.PageId, oldPane);
-            return url;
-        }
-
-        private async Task<string> DeleteModule(string url, PageModule pagemodule)
-        {
-            pagemodule.IsDeleted = true;
-            await PageModuleService.UpdatePageModuleAsync(pagemodule);
-            await PageModuleService.UpdatePageModuleOrderAsync(pagemodule.PageId, pagemodule.Pane);
-            return url;
-        }
-
-        private async Task<string> Settings(string url, PageModule pagemodule)
-        {
-            await Task.Yield();
-            var returnurl = Utilities.NavigateUrl(PageState.Alias.Path, PageState.Page.Path, "edit=true");
-            url = Utilities.EditUrl(PageState.Alias.Path, PageState.Page.Path, pagemodule.ModuleId, "Settings", "returnurl=" + WebUtility.UrlEncode(returnurl));
-            return url;
+            url = Utilities.EditUrl(PageState.Alias.Path, PageState.Page.Path, pagemodule.ModuleId, "Settings", "returnurl=" + WebUtility.UrlEncode(url));
+            return Task.FromResult(url);
         }
 
         private async Task<string> Publish(string url, PageModule pagemodule)
@@ -172,6 +151,20 @@ namespace Oqtane.Themes.Controls
             return url;
         }
 
+        private async Task<string> DeleteModule(string url, PageModule pagemodule)
+        {
+            pagemodule.IsDeleted = true;
+            await PageModuleService.UpdatePageModuleAsync(pagemodule);
+            await PageModuleService.UpdatePageModuleOrderAsync(pagemodule.PageId, pagemodule.Pane);
+            return url;
+        }
+
+        private Task<string> EditUrlAsync(string url, int moduleId, string import)
+        {
+            url = Utilities.EditUrl(PageState.Alias.Path, PageState.Page.Path, moduleId, import, "returnurl=" + WebUtility.UrlEncode(url));
+            return Task.FromResult(url);
+        }
+
         private async Task<string> MoveTop(string url, PageModule pagemodule)
         {
             pagemodule.Order = 0;
@@ -201,6 +194,17 @@ namespace Oqtane.Themes.Controls
             pagemodule.Order += 3;
             await PageModuleService.UpdatePageModuleAsync(pagemodule);
             await PageModuleService.UpdatePageModuleOrderAsync(pagemodule.PageId, pagemodule.Pane);
+            return url;
+        }
+
+        private async Task<string> MoveToPane(string url, string newPane, PageModule pagemodule)
+        {
+            string oldPane = pagemodule.Pane;
+            pagemodule.Pane = newPane;
+            pagemodule.Order = int.MaxValue; // add to bottom of pane
+            await PageModuleService.UpdatePageModuleAsync(pagemodule);
+            await PageModuleService.UpdatePageModuleOrderAsync(pagemodule.PageId, pagemodule.Pane);
+            await PageModuleService.UpdatePageModuleOrderAsync(pagemodule.PageId, oldPane);
             return url;
         }
 

@@ -1,6 +1,7 @@
 @using System.Diagnostics.CodeAnalysis
 @using System.Net
-@using Microsoft.AspNetCore.Http
+@using System.Globalization
+@using System.Security.Claims
 @namespace Oqtane.UI
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject SiteState SiteState
@@ -95,6 +96,7 @@
     {
         Site site = null;
         Page page = null;
+        List<Module> modules = null;
         User user = null;
         var editmode = false;
         var refresh = false;
@@ -103,7 +105,7 @@
         _error = "";
 
         Route route = new Route(_absoluteUri, SiteState.Alias.Path);
-        int moduleid = int.Parse(route.ModuleId);
+        int moduleid = int.Parse(route.ModuleId, CultureInfo.InvariantCulture);
         var action = route.Action; 
 
         var querystring = Utilities.ParseQueryString(route.Query);
@@ -154,10 +156,11 @@
 
         // verify user is authenticated for current site
         var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        if (authState.User.Identity.IsAuthenticated && authState.User.Claims.Any(item => item.Type == "sitekey" && item.Value == SiteState.Alias.SiteKey))
+        if (authState.User.Identity.IsAuthenticated && authState.User.Claims.Any(item => item.Type == Constants.SiteKeyClaimType && item.Value == SiteState.Alias.SiteKey))
         {
             // get user
-            user = await UserService.GetUserAsync(authState.User.Identity.Name, SiteState.Alias.SiteId);
+            var userid = int.Parse(authState.User.Claims.First(item => item.Type == ClaimTypes.NameIdentifier).Value);
+            user = await UserService.GetUserAsync(userid, SiteState.Alias.SiteId);
             if (user != null)
             {
                 user.IsAuthenticated = authState.User.Identity.IsAuthenticated;
@@ -211,7 +214,7 @@
                 return;
             }
 
-            if (PageState == null || refresh || PageState.Page.Path != route.PagePath)
+            if (refresh || PageState == null || PageState.Page.Path != route.PagePath)
             {
                 page = site.Pages.FirstOrDefault(item => item.Path.Equals(route.PagePath, StringComparison.OrdinalIgnoreCase));
             }
@@ -252,31 +255,41 @@
             }
 
             // check if user is authorized to view page
-            if (page != null && UserSecurity.IsAuthorized(user, PermissionNames.View, page.PermissionList) && (Utilities.IsPageModuleVisible(page.EffectiveDate, page.ExpiryDate) || UserSecurity.IsAuthorized(user, PermissionNames.Edit, page.PermissionList)))
+            if (page != null && UserSecurity.IsAuthorized(user, PermissionNames.View, page.PermissionList) && (Utilities.IsEffectiveAndNotExpired(page.EffectiveDate, page.ExpiryDate) || UserSecurity.IsAuthorized(user, PermissionNames.Edit, page.PermissionList)))
             {
                 // edit mode
                 if (user != null)
                 {
-                    if (querystring.ContainsKey("editmode") && querystring["edit"] == "true")
+                    var editpageid = user.Settings.ContainsKey("CP-editmode") ? int.Parse(user.Settings["CP-editmode"], CultureInfo.InvariantCulture) : -1;
+                    if ((querystring.ContainsKey("edit") && querystring["edit"] == "true") || page.PageId == editpageid)
                     {
                         editmode = true;
                     }
                     else
                     {
-                        editmode = (page.PageId == ((user.Settings.ContainsKey("CP-editmode")) ? int.Parse(user.Settings["CP-editmode"]) : -1));
-                        if (!editmode)
+                        if (editpageid != -1)
                         {
-                            var userSettings = new Dictionary<string, string> { { "CP-editmode", "-1" } };
-                            await SettingService.UpdateUserSettingsAsync(userSettings, user.UserId);
+                            // reset edit mode page
+                            await SettingService.AddOrUpdateSettingAsync(EntityNames.User, user.UserId, "CP-editmode", "-1", false);
                         }
                     }
                 }
 
+                // get modules for current page
+                if (refresh || PageState.Modules == null || !PageState.Modules.Any() || PageState.Modules.First().PageId != page.PageId)
+                {
+                    modules = await SiteService.GetModulesAsync(site.SiteId, page.PageId);
+                }
+                else
+                {
+                    modules = PageState.Modules;
+                }
+
                 // load additional metadata for current page
-                page = ProcessPage(page, site, user, SiteState.Alias);
+                page = ProcessPage(page, site, user, SiteState.Alias, action);
 
                 // load additional metadata for modules
-                (page, site.Modules) = ProcessModules(page, site.Modules, moduleid, action, (!string.IsNullOrEmpty(page.DefaultContainerType)) ? page.DefaultContainerType : site.DefaultContainerType, SiteState.Alias);
+                (page, modules) = ProcessModules(site, page, modules, moduleid, action, (!string.IsNullOrEmpty(page.DefaultContainerType)) ? page.DefaultContainerType : site.DefaultContainerType, SiteState.Alias);
 
                 // populate page state (which acts as a client-side cache for subsequent requests)
                 _pagestate = new PageState
@@ -284,6 +297,7 @@
                     Alias = SiteState.Alias,
                     Site = site,
                     Page = page,
+                    Modules = modules,
                     User = user,
                     Uri = new Uri(_absoluteUri, UriKind.Absolute),
                     Route = route,
@@ -351,7 +365,7 @@
         }
     }
 
-    private Page ProcessPage(Page page, Site site, User user, Alias alias)
+    private Page ProcessPage(Page page, Site site, User user, Alias alias, string action)
     {
         try
         {
@@ -388,6 +402,16 @@
                     page.Resources = ManagePageResources(page.Resources, themeobject.Resources, ResourceLevel.Page, alias, "Themes", themetype.Namespace);
                 }
             }
+            // theme settings components are dynamically loaded within the framework Page Management module
+            if (page.Path == "admin/pages" && action.ToLower() == "edit" && theme != null && !string.IsNullOrEmpty(theme.ThemeSettingsType))
+            {
+                var settingsType = Type.GetType(theme.ThemeSettingsType);
+                if (settingsType != null)
+                {
+                    var objSettings = Activator.CreateInstance(settingsType) as IModuleControl;
+                    page.Resources = ManagePageResources(page.Resources, objSettings.Resources, ResourceLevel.Module, alias, "Modules", settingsType.Namespace);
+                }
+            }
 
             if (!string.IsNullOrEmpty(panes))
             {
@@ -411,7 +435,7 @@
         return page;
     }
 
-    private (Page Page, List<Module> Modules) ProcessModules(Page page, List<Module> modules, int moduleid, string action, string defaultcontainertype, Alias alias)
+    private (Page Page, List<Module> Modules) ProcessModules(Site site, Page page, List<Module> modules, int moduleid, string action, string defaultcontainertype, Alias alias)
     {
         var paneindex = new Dictionary<string, int>();
 
@@ -476,16 +500,42 @@
                 // retrieve module component resources
                 var moduleobject = Activator.CreateInstance(moduletype) as IModuleControl;
                 module.RenderMode = moduleobject.RenderMode;
+                module.Prerender = moduleobject.Prerender;
 
                 page.Resources = ManagePageResources(page.Resources, moduleobject.Resources, ResourceLevel.Module, alias, "Modules",  moduletype.Namespace);
+
+                // settings components are dynamically loaded within the framework Settings module
                 if (action.ToLower() == "settings" && module.ModuleDefinition != null)
                 {
-                    // settings components are embedded within a framework settings module
-                    moduletype = Type.GetType(module.ModuleDefinition.ControlTypeTemplate.Replace(Constants.ActionToken, action), false, true);
+                    // module settings component
+                    var settingsType = "";
+                    if (!string.IsNullOrEmpty(module.ModuleDefinition.SettingsType))
+                    {                        
+                        // module settings type explicitly declared in IModule interface
+                        settingsType = module.ModuleDefinition.SettingsType; 
+                    }
+                    else
+                    {
+                        // legacy support - module settings type determined by convention
+                        settingsType = module.ModuleDefinition.ControlTypeTemplate.Replace(Constants.ActionToken, action);
+                    }
+                    moduletype = Type.GetType(settingsType, false, true);
                     if (moduletype != null)
                     {
                         moduleobject = Activator.CreateInstance(moduletype) as IModuleControl;
                         page.Resources = ManagePageResources(page.Resources, moduleobject.Resources, ResourceLevel.Module, alias, "Modules", moduletype.Namespace);
+                    }
+
+                    // container settings component
+                    var theme = site.Themes.FirstOrDefault(item => item.Themes.Any(item => item.TypeName == page.ThemeType));
+                    if (theme != null && !string.IsNullOrEmpty(theme.ContainerSettingsType))
+                    {
+                        moduletype = Type.GetType(theme.ContainerSettingsType);
+                        if (moduletype != null)
+                        {
+                            moduleobject = Activator.CreateInstance(moduletype) as IModuleControl;
+                            page.Resources = ManagePageResources(page.Resources, moduleobject.Resources, ResourceLevel.Module, alias, "Modules", moduletype.Namespace);
+                        }
                     }
                 }
 
@@ -549,7 +599,7 @@
         {
             foreach (var resource in resources)
             {
-                if (resource.Level != ResourceLevel.Site)
+                if (resource.ResourceType == ResourceType.Stylesheet || resource.Level != ResourceLevel.Site)
                 {
                     if (resource.Url.StartsWith("~"))
                     {

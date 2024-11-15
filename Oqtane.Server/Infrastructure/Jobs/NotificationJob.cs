@@ -89,9 +89,9 @@ namespace Oqtane.Infrastructure
                             }
 
                             // validate recipient
-                            if (string.IsNullOrEmpty(notification.ToEmail))
+                            if (string.IsNullOrEmpty(notification.ToEmail) || !MailAddress.TryCreate(notification.ToEmail, out _))
                             {
-                                log += "Recipient Missing For NotificationId: " + notification.NotificationId + "<br />";
+                                log += $"NotificationId: {notification.NotificationId} - Has Missing Or Invalid Recipient {notification.ToEmail}<br />";
                                 notification.IsDeleted = true;
                                 notificationRepository.UpdateNotification(notification);
                             }
@@ -149,7 +149,7 @@ namespace Oqtane.Infrastructure
                                 catch (Exception ex)
                                 {
                                     // error
-                                    log += ex.Message + "<br />";
+                                    log += $"NotificationId: {notification.NotificationId} - {ex.Message}<br />";
                                 }
                             }
                         }

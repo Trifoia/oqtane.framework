@@ -35,11 +35,11 @@
     {
         if (Disabled)
         {
-            <button type="button" class="@Class" disabled>@((MarkupString)_iconSpan) @Text</button>
+            <button type="button" class="@Class" disabled>@((MarkupString)_openIconSpan) @_openText</button>
         }
         else
         {
-            <button type="button" class="@Class" @onclick="DisplayModal">@((MarkupString)_iconSpan) @Text</button>
+            <button type="button" class="@Class" @onclick="DisplayModal">@((MarkupString)_openIconSpan) @_openText</button>
         }
     }
 }
@@ -51,25 +51,25 @@ else
             <div class="modal" tabindex="-1" role="dialog">
                 <div class="modal-dialog">
                     <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">@Header</h5>
-                            <form method="post" @formname="@($"ActionDialogCloseForm{Id}")" @onsubmit="DisplayModal" data-enhance>
-                                <input type="hidden" name="@Constants.RequestVerificationToken" value="@SiteState.AntiForgeryToken" />
+                        <form class="app-form-inline" method="post" @formname="@($"ActionDialogCloseForm:{ModuleState.PageModuleId}:{Id}")" @onsubmit="DisplayModal" data-enhance>
+                            <input type="hidden" name="@Constants.RequestVerificationToken" value="@SiteState.AntiForgeryToken" />
+                            <div class="modal-header">
+                                <h5 class="modal-title">@Header</h5>
                                 <button type="submit" class="btn-close" aria-label="Close"></button>
-                            </form>
-                        </div>
+                            </div>
+                        </form>
                         <div class="modal-body">
                             <p>@Message</p>
                         </div>
                         <div class="modal-footer">
                             @if (!string.IsNullOrEmpty(Action))
                             {
-                                <form method="post" @formname="@($"ActionDialogConfirmForm{Id}")" @onsubmit="Confirm" data-enhance>
+                                <form method="post" @formname="@($"ActionDialogConfirmForm:{ModuleState.PageModuleId}:{Id}")" @onsubmit="Confirm" data-enhance>
                                     <input type="hidden" name="@Constants.RequestVerificationToken" value="@SiteState.AntiForgeryToken" />
                                     <button type="submit" class="@Class">@((MarkupString)_iconSpan) @Text</button>
                                 </form>
                             }
-                            <form method="post" @formname="@($"ActionDialogCancelForm{Id}")" @onsubmit="DisplayModal" data-enhance>
+                            <form method="post" @formname="@($"ActionDialogCancelForm:{ModuleState.PageModuleId}:{Id}")" @onsubmit="DisplayModal" data-enhance>
                                 <input type="hidden" name="@Constants.RequestVerificationToken" value="@SiteState.AntiForgeryToken" />
                                 <button type="submit" class="btn btn-secondary">@SharedLocalizer["Cancel"]</button>
                             </form>
@@ -83,13 +83,13 @@ else
     {
         if (Disabled)
         {
-            <button type="button" class="@Class" disabled>@((MarkupString)_iconSpan) @Text</button>
+            <button type="button" class="@Class" disabled>@((MarkupString)_openIconSpan) @_openText</button>
         }
         else
         {
-            <form method="post" @formname="@($"ActionDialogActionForm{Id}")" @onsubmit="DisplayModal" data-enhance>
+            <form method="post" class="app-form-inline" @formname="@($"ActionDialogActionForm:{ModuleState.PageModuleId}:{Id}")" @onsubmit="DisplayModal" data-enhance>
                 <input type="hidden" name="@Constants.RequestVerificationToken" value="@SiteState.AntiForgeryToken" />
-                <button type="submit" class="@Class">@((MarkupString)_iconSpan) @Text</button>
+                <button type="submit" class="@Class">@((MarkupString)_openIconSpan) @_openText</button>
             </form>
         }
     }
@@ -101,6 +101,8 @@ else
     private bool _editmode = false;
     private bool _authorized = false;
     private string _iconSpan = string.Empty;
+    private string _openIconSpan = string.Empty;
+    private string _openText = string.Empty;
 
     [Parameter]
     public string Header { get; set; } // required
@@ -139,6 +141,9 @@ else
     public string IconName { get; set; } // optional - specifies an icon for the link - default is no icon
 
     [Parameter]
+    public bool IconOnly { get; set; } // optional - specifies only icon in opening link
+
+    [Parameter]
     public string Id { get; set; } // optional - specifies a unique id for the compoment - required when there are multiple component instances on a page in static rendering
 
     protected override void OnInitialized()
@@ -157,6 +162,7 @@ else
         {
             Text = Action;
         }
+
         if (string.IsNullOrEmpty(Class))
         {
             Class = "btn btn-success";
@@ -167,21 +173,34 @@ else
             _editmode = bool.Parse(EditMode);
         }
 
-        if (!string.IsNullOrEmpty(IconName))
-        {
-            if (!IconName.Contains(" "))
-            {
-                IconName = "oi oi-" + IconName;
-            }
-            _iconSpan = $"<span class=\"{IconName}\"></span>&nbsp;";
-        }
-
         Text = Localize(nameof(Text), Text);
         Header = Localize(nameof(Header), Header);
         Message = Localize(nameof(Message), Message);
 
+        _openText = Text;
+
+        if (!string.IsNullOrEmpty(IconName))
+        {
+            if (IconOnly)
+            {
+                _openText = string.Empty;
+            }
+
+            // Check if IconName starts with "oi oi-"
+            bool startsWithOiOi = IconName.StartsWith("oi oi-");
+
+            if (!startsWithOiOi && !IconName.Contains(" "))
+            {
+                IconName = "oi oi-" + IconName;
+            }
+            _openIconSpan = $"<span class=\"{IconName}\"></span>{(IconOnly ? "" : "&nbsp")}";
+            _iconSpan = $"<span class=\"{IconName}\"></span>&nbsp";
+        }
+        
         _permissions = (PermissionList == null) ? ModuleState.PermissionList : PermissionList;
         _authorized = IsAuthorized();
+
+        if (string.IsNullOrEmpty(Id)) Id = "1";
 
         if (PageState.QueryString.ContainsKey("dialog"))
         {

@@ -5,14 +5,11 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
-using System.Security;
 using Microsoft.Extensions.Caching.Memory;
 using Oqtane.Infrastructure;
 using Oqtane.Models;
 using Oqtane.Shared;
 using Oqtane.Themes;
-using System.Reflection.Metadata;
-using Oqtane.Migrations.Master;
 
 namespace Oqtane.Repository
 {
@@ -160,12 +157,12 @@ namespace Oqtane.Repository
             if (siteId != -1)
             {
                 var siteKey = _tenants.GetAlias().SiteKey;
+                var assemblies = new List<string>();
 
                 // get settings for site
                 var settings = _settings.GetSettings(EntityNames.Theme).ToList();
 
                 // populate theme site settings
-                var serverState = _serverState.GetServerState(siteKey);
                 foreach (Theme theme in Themes)
                 {
                     theme.SiteId = siteId;
@@ -183,21 +180,28 @@ namespace Oqtane.Repository
                     if (theme.IsEnabled)
                     {
                         // build list of assemblies for site
-                        if (!serverState.Assemblies.Contains(theme.AssemblyName))
+                        if (!assemblies.Contains(theme.AssemblyName))
                         {
-                            serverState.Assemblies.Add(theme.AssemblyName);
+                            assemblies.Add(theme.AssemblyName);
                         }
                         if (!string.IsNullOrEmpty(theme.Dependencies))
                         {
                             foreach (var assembly in theme.Dependencies.Replace(".dll", "").Split(',', StringSplitOptions.RemoveEmptyEntries).Reverse())
                             {
-                                if (!serverState.Assemblies.Contains(assembly.Trim()))
+                                if (!assemblies.Contains(assembly.Trim()))
                                 {
-                                    serverState.Assemblies.Insert(0, assembly.Trim());
+                                    assemblies.Insert(0, assembly.Trim());
                                 }
                             }
                         }
                     }
+                }
+
+                // cache site assemblies
+                var serverState = _serverState.GetServerState(siteKey);
+                foreach (var assembly in assemblies)
+                {
+                    if (!serverState.Assemblies.Contains(assembly)) serverState.Assemblies.Add(assembly);
                 }
             }
 
@@ -224,9 +228,11 @@ namespace Oqtane.Repository
         private List<Theme> LoadThemesFromAssembly(List<Theme> themes, Assembly assembly)
         {
             Theme theme;
-            List<Type> themeTypes = new List<Type>();
 
+            Type[] themeTypes = assembly.GetTypes().Where(item => item.GetInterfaces().Contains(typeof(ITheme))).ToArray();
             Type[] themeControlTypes = assembly.GetTypes().Where(item => item.GetInterfaces().Contains(typeof(IThemeControl))).ToArray();
+            Type[] containerControlTypes = assembly.GetTypes().Where(item => item.GetInterfaces().Contains(typeof(IContainerControl))).ToArray();
+
             foreach (Type themeControlType in themeControlTypes)
             {
                 // Check if type should be ignored
@@ -240,16 +246,9 @@ namespace Oqtane.Repository
                 int index = themes.FindIndex(item => item.ThemeName == qualifiedThemeType);
                 if (index == -1)
                 {
-                    // Find all types in the assembly with the same namespace root
-                    themeTypes = assembly.GetTypes()
-                        .Where(item => !item.IsOqtaneIgnore())
-                        .Where(item => item.Namespace != null)
-                        .Where(item => item.Namespace == themeControlType.Namespace || item.Namespace.StartsWith(themeControlType.Namespace + "."))
-                        .ToList();
+                    // determine if this component is part of a theme which implements ITheme
+                    Type themetype = themeTypes.FirstOrDefault(item => item.Namespace == themeControlType.Namespace);
 
-                    // determine if this theme implements ITheme
-                    Type themetype = themeTypes
-                        .FirstOrDefault(item => item.GetInterfaces().Contains(typeof(ITheme)));
                     if (themetype != null)
                     {
                         var themeobject = Activator.CreateInstance(themetype) as ITheme;
@@ -285,6 +284,7 @@ namespace Oqtane.Repository
                 }
                 theme = themes[index];
 
+                // add theme control
                 var themecontrolobject = Activator.CreateInstance(themeControlType) as IThemeControl;
                 theme.Themes.Add(
                     new ThemeControl
@@ -296,14 +296,12 @@ namespace Oqtane.Repository
                     }
                 );
 
-                // containers
-                Type[] containertypes = themeTypes
-                    .Where(item => item.GetInterfaces().Contains(typeof(IContainerControl))).ToArray();
-                foreach (Type containertype in containertypes)
+                if (!theme.Containers.Any())
                 {
-                    var containerobject = Activator.CreateInstance(containertype) as IThemeControl;
-                    if (theme.Containers.FirstOrDefault(item => item.TypeName == containertype.FullName + ", " + themeControlType.Assembly.GetName().Name) == null)
+                    // add container controls
+                    foreach (Type containertype in containerControlTypes.Where(item => item.Namespace == themeControlType.Namespace))
                     {
+                        var containerobject = Activator.CreateInstance(containertype) as IThemeControl;
                         theme.Containers.Add(
                             new ThemeControl
                             {

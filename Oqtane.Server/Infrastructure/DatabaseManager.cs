@@ -155,7 +155,7 @@ namespace Oqtane.Infrastructure
                     // add new site
                     if (install.TenantName != TenantNames.Master && install.ConnectionString.Contains("="))
                     {
-                        _configManager.AddOrUpdateSetting($"{SettingKeys.ConnectionStringsSection}:{install.TenantName}", install.ConnectionString, false);
+                        _configManager.AddOrUpdateSetting($"{SettingKeys.ConnectionStringsSection}:{install.TenantName}", install.ConnectionString, true);
                     }
                     if (install.TenantName == TenantNames.Master && !install.ConnectionString.Contains("="))
                     {
@@ -375,7 +375,6 @@ namespace Oqtane.Infrastructure
                                 AddEFMigrationsHistory(sql, _configManager.GetSetting($"{SettingKeys.ConnectionStringsSection}:{tenant.DBConnectionString}", ""), tenant.DBType, tenant.Version, false);
                                 // push latest model into database
                                 tenantDbContext.Database.Migrate();
-                                result.Success = true;
                             }
                         }
                         catch (Exception ex)
@@ -384,35 +383,35 @@ namespace Oqtane.Infrastructure
                             _filelogger.LogError(Utilities.LogMessage(this, result.Message));
                         }
 
-                        // execute any version specific upgrade logic
-                        var version = tenant.Version;
-                        var index = Array.FindIndex(versions, item => item == version);
-                        if (index != (versions.Length - 1))
+                        if (string.IsNullOrEmpty(result.Message))
                         {
-                            try
+                            // execute any version specific upgrade logic
+                            var version = tenant.Version;
+                            var index = Array.FindIndex(versions, item => item == version);
+                            if (index != (versions.Length - 1))
                             {
-                                for (var i = (index + 1); i < versions.Length; i++)
+                                try
                                 {
-                                    upgrades.Upgrade(tenant, versions[i]);
+                                    for (var i = (index + 1); i < versions.Length; i++)
+                                    {
+                                        upgrades.Upgrade(tenant, versions[i]);
+                                    }
+                                    tenant.Version = versions[versions.Length - 1];
+                                    db.Entry(tenant).State = EntityState.Modified;
+                                    db.SaveChanges();
                                 }
-                                tenant.Version = versions[versions.Length - 1];
-                                db.Entry(tenant).State = EntityState.Modified;
-                                db.SaveChanges();
-                            }
-                            catch (Exception ex)
-                            {
-                                result.Message = "An Error Occurred Executing Upgrade Logic On Tenant " + tenant.Name + ". " + ex.ToString();
-                                _filelogger.LogError(Utilities.LogMessage(this, result.Message));
+                                catch (Exception ex)
+                                {
+                                    result.Message = "An Error Occurred Executing Upgrade Logic On Tenant " + tenant.Name + ". " + ex.ToString();
+                                    _filelogger.LogError(Utilities.LogMessage(this, result.Message));
+                                }
                             }
                         }
                     }
                 }
             }
 
-            if (string.IsNullOrEmpty(result.Message))
-            {
-                result.Success = true;
-            }
+            result.Success = string.IsNullOrEmpty(result.Message);
 
             return result;
         }
@@ -452,7 +451,7 @@ namespace Oqtane.Infrastructure
                                             {
                                                 try
                                                 {
-                                                    if (moduleType.GetInterface("IInstallable") != null)
+                                                    if (moduleType.GetInterface(nameof(IInstallable)) != null)
                                                     {
                                                         tenantManager.SetTenant(tenant.TenantId);
                                                         var moduleObject = ActivatorUtilities.CreateInstance(scope.ServiceProvider, moduleType) as IInstallable;
@@ -539,6 +538,8 @@ namespace Oqtane.Infrastructure
                             var identityUserManager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
 
                             var tenant = tenants.GetTenants().FirstOrDefault(item => item.Name == install.TenantName);
+                            var rendermode = (!string.IsNullOrEmpty(install.RenderMode)) ? install.RenderMode : _configManager.GetSection("RenderMode").Value;
+                            var runtime = (!string.IsNullOrEmpty(install.Runtime)) ? install.Runtime : _configManager.GetSection("Runtime").Value;
 
                             site = new Site
                             {
@@ -556,9 +557,9 @@ namespace Oqtane.Infrastructure
                                 DefaultContainerType = (!string.IsNullOrEmpty(install.DefaultContainer)) ? install.DefaultContainer : Constants.DefaultContainer,
                                 AdminContainerType = (!string.IsNullOrEmpty(install.DefaultAdminContainer)) ? install.DefaultAdminContainer : Constants.DefaultAdminContainer,
                                 SiteTemplateType = install.SiteTemplate,
-                                RenderMode = (!string.IsNullOrEmpty(install.RenderMode)) ? install.RenderMode : _configManager.GetSection("RenderMode").Value,
-                                Runtime = (!string.IsNullOrEmpty(install.Runtime)) ? install.Runtime : _configManager.GetSection("Runtime").Value,
-                                Prerender = true,
+                                RenderMode = rendermode,
+                                Runtime = runtime,
+                                Prerender = (rendermode == RenderModes.Interactive),
                                 Hybrid = false
                             };
                             site = sites.AddSite(site);
@@ -586,7 +587,7 @@ namespace Oqtane.Infrastructure
 
                                         // add host role
                                         var hostRoleId = roles.GetRoles(user.SiteId, true).FirstOrDefault(item => item.Name == RoleNames.Host)?.RoleId ?? 0;
-                                        var userRole = new UserRole { UserId = user.UserId, RoleId = hostRoleId, EffectiveDate = null, ExpiryDate = null };
+                                        var userRole = new UserRole { UserId = user.UserId, RoleId = hostRoleId, EffectiveDate = null, ExpiryDate = null, IgnoreSecurityStamp = true };
                                         userRoles.AddUserRole(userRole);
                                     }
                                 }

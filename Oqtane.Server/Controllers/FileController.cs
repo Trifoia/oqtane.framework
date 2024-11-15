@@ -17,10 +17,10 @@ using Oqtane.Infrastructure;
 using Oqtane.Repository;
 using Oqtane.Extensions;
 using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Processing;
-using SixLabors.ImageSharp.Formats.Png;
 using System.Net.Http;
 using Microsoft.AspNetCore.Cors;
+using System.IO.Compression;
+using Oqtane.Services;
 
 // ReSharper disable StringIndexOfIsCultureSpecific.1
 
@@ -37,7 +37,9 @@ namespace Oqtane.Controllers
         private readonly ILogManager _logger;
         private readonly Alias _alias;
         private readonly ISettingRepository _settingRepository;
-        public FileController(IWebHostEnvironment environment, IFileRepository files, IFolderRepository folders, IUserPermissions userPermissions, ISettingRepository settingRepository, ISyncManager syncManager, ILogManager logger, ITenantManager tenantManager)
+        private readonly IImageService _imageService;
+
+        public FileController(IWebHostEnvironment environment, IFileRepository files, IFolderRepository folders, IUserPermissions userPermissions, ISettingRepository settingRepository, ISyncManager syncManager, ILogManager logger, ITenantManager tenantManager, IImageService imageService)
         {
             _environment = environment;
             _files = files;
@@ -47,6 +49,7 @@ namespace Oqtane.Controllers
             _logger = logger;
             _alias = tenantManager.GetAlias();
             _settingRepository = settingRepository;
+            _imageService = imageService;
         }
 
         // GET: api/<controller>?folder=x
@@ -171,18 +174,30 @@ namespace Oqtane.Controllers
             {
                 if (_userPermissions.IsAuthorized(User, folder.SiteId, EntityNames.Folder, file.FolderId, PermissionNames.Edit))
                 {
-                    var filepath = _files.GetFilePath(file);
-                    if (System.IO.File.Exists(filepath))
+                    if (HasValidFileExtension(file.Name) && file.Name.IsPathOrFileValid())
                     {
-                        file = CreateFile(file.Name, folder.FolderId, filepath);
-                        file = _files.AddFile(file);
-                        _syncManager.AddSyncEvent(_alias, EntityNames.File, file.FileId, SyncEventActions.Create);
-                        _logger.Log(LogLevel.Information, this, LogFunction.Create, "File Added {File}", file);
+                        var filepath = _files.GetFilePath(file);
+                        if (System.IO.File.Exists(filepath))
+                        {
+                            file = CreateFile(file.Name, folder.FolderId, filepath);
+                            if (file != null)
+                            {
+                                file = _files.AddFile(file);
+                                _syncManager.AddSyncEvent(_alias, EntityNames.File, file.FileId, SyncEventActions.Create);
+                                _logger.Log(LogLevel.Information, this, LogFunction.Create, "File Added {File}", file);
+                            }
+                        }
+                        else
+                        {
+                            _logger.Log(LogLevel.Error, this, LogFunction.Security, "File Does Not Exist At Path {FilePath}", filepath);
+                            HttpContext.Response.StatusCode = (int)HttpStatusCode.NotFound;
+                            file = null;
+                        }
                     }
                     else
                     {
-                        _logger.Log(LogLevel.Error, this, LogFunction.Security, "File Does Not Exist At Path {FilePath}", filepath);
-                        HttpContext.Response.StatusCode = (int)HttpStatusCode.NotFound;
+                        _logger.Log(LogLevel.Error, this, LogFunction.Security, "File Name Is Invalid Or Contains Invalid Extension {File}", file.Name);
+                        HttpContext.Response.StatusCode = (int)HttpStatusCode.Forbidden;
                         file = null;
                     }
                 }
@@ -213,29 +228,38 @@ namespace Oqtane.Controllers
                 && _userPermissions.IsAuthorized(User, file.Folder.SiteId, EntityNames.Folder, File.FolderId, PermissionNames.Edit) // ensure user had edit rights to original folder
                 && _userPermissions.IsAuthorized(User, file.Folder.SiteId, EntityNames.Folder, file.FolderId, PermissionNames.Edit)) // ensure user has edit rights to new folder
             {
-                if (File.Name != file.Name || File.FolderId != file.FolderId)
+                if (HasValidFileExtension(file.Name) && file.Name.IsPathOrFileValid())
                 {
-                    file.Folder = _folders.GetFolder(file.FolderId, false);
-                    string folderpath = _folders.GetFolderPath(file.Folder);
-                    if (!Directory.Exists(folderpath))
+                    if (File.Name != file.Name || File.FolderId != file.FolderId)
                     {
-                        Directory.CreateDirectory(folderpath);
+                        file.Folder = _folders.GetFolder(file.FolderId, false);
+                        string folderpath = _folders.GetFolderPath(file.Folder);
+                        if (!Directory.Exists(folderpath))
+                        {
+                            Directory.CreateDirectory(folderpath);
+                        }
+                        System.IO.File.Move(_files.GetFilePath(File), Path.Combine(folderpath, file.Name));
                     }
-                    System.IO.File.Move(_files.GetFilePath(File), Path.Combine(folderpath, file.Name));
-                }
 
-                var newfile = CreateFile(File.Name, file.Folder.FolderId, _files.GetFilePath(file));
-                if (newfile != null)
+                    var newfile = CreateFile(File.Name, file.Folder.FolderId, _files.GetFilePath(file));
+                    if (newfile != null)
+                    {
+                        file.Extension = newfile.Extension;
+                        file.Size = newfile.Size;
+                        file.ImageWidth = newfile.ImageWidth;
+                        file.ImageHeight = newfile.ImageHeight;
+                    }
+
+                    file = _files.UpdateFile(file);
+                    _syncManager.AddSyncEvent(_alias, EntityNames.File, file.FileId, SyncEventActions.Update);
+                    _logger.Log(LogLevel.Information, this, LogFunction.Update, "File Updated {File}", file);
+                }
+                else
                 {
-                    file.Extension = newfile.Extension;
-                    file.Size = newfile.Size;
-                    file.ImageWidth = newfile.ImageWidth;
-                    file.ImageHeight = newfile.ImageHeight;
+                    _logger.Log(LogLevel.Error, this, LogFunction.Security, "File Name Is Invalid Or Contains Invalid Extension {File}", file.Name);
+                    HttpContext.Response.StatusCode = (int)HttpStatusCode.Forbidden;
+                    file = null;
                 }
-
-                file = _files.UpdateFile(file);
-                _syncManager.AddSyncEvent(_alias, EntityNames.File, file.FileId, SyncEventActions.Update);
-                _logger.Log(LogLevel.Information, this, LogFunction.Update, "File Updated {File}", file);
             }
             else
             {
@@ -245,6 +269,57 @@ namespace Oqtane.Controllers
             }
 
             return file;
+        }
+
+        // PUT api/<controller>/unzip/5
+        [HttpPut("unzip/{id}")]
+        [Authorize(Roles = RoleNames.Admin)]
+        public void Unzip(int id)
+        {
+            var zipfile = _files.GetFile(id, false);
+            if (zipfile != null && zipfile.Folder.SiteId == _alias.SiteId && zipfile.Extension.ToLower() == "zip")
+            {
+                // extract files
+                string folderpath = _folders.GetFolderPath(zipfile.Folder);
+                using (ZipArchive archive = ZipFile.OpenRead(Path.Combine(folderpath, zipfile.Name)))
+                {
+                    foreach (ZipArchiveEntry entry in archive.Entries)
+                    {
+                        if (HasValidFileExtension(entry.Name) && entry.Name.IsPathOrFileValid())
+                        {
+                            entry.ExtractToFile(Path.Combine(folderpath, entry.Name), true);
+                            var file = CreateFile(entry.Name, zipfile.Folder.FolderId, Path.Combine(folderpath, entry.Name));
+                            if (file != null)
+                            {
+                                if (file.FileId == 0)
+                                {
+                                    file = _files.AddFile(file);
+                                }
+                                else
+                                {
+                                    file = _files.UpdateFile(file);
+                                }
+                                _syncManager.AddSyncEvent(_alias, EntityNames.File, file.FileId, SyncEventActions.Create);
+                                _logger.Log(LogLevel.Information, this, LogFunction.Create, "File Extracted {File}", file);
+                            }
+                        }
+                        else
+                        {
+                            _logger.Log(LogLevel.Error, this, LogFunction.Security, "File Name Is Invalid Or Contains Invalid Extension {File}", entry.Name);
+                        }
+                    }
+                }
+
+                // delete zip file
+                _files.DeleteFile(zipfile.FileId);
+                System.IO.File.Delete(Path.Combine(folderpath, zipfile.Name));
+                _logger.Log(LogLevel.Information, this, LogFunction.Create, "Zip File Removed {File}", zipfile);
+            }
+            else
+            {
+                _logger.Log(LogLevel.Error, this, LogFunction.Security, "Unauthorized File Unzip Attempt {FileId}", id);
+                HttpContext.Response.StatusCode = (int)HttpStatusCode.Forbidden;
+            }
         }
 
         // DELETE api/<controller>/5
@@ -289,64 +364,55 @@ namespace Oqtane.Controllers
                 folder = _folders.GetFolder(FolderId);
             }
 
-            var _UploadableFiles = _settingRepository.GetSetting(EntityNames.Site, _alias.SiteId, "UploadableFiles")?.SettingValue;
-            _UploadableFiles = (string.IsNullOrEmpty(_UploadableFiles)) ? Constants.UploadableFiles : _UploadableFiles;
-
             if (folder != null && folder.SiteId == _alias.SiteId && _userPermissions.IsAuthorized(User, PermissionNames.Edit, folder.PermissionList))
             {
-                string folderPath = _folders.GetFolderPath(folder);
-                CreateDirectory(folderPath);
-
                 if (string.IsNullOrEmpty(name))
                 {
                     name = url.Substring(url.LastIndexOf("/", StringComparison.Ordinal) + 1);
                 }
-                // check for allowable file extensions
-                if (!_UploadableFiles.Split(',').Contains(Path.GetExtension(name).ToLower().Replace(".", "")))
-                {
-                    _logger.Log(LogLevel.Error, this, LogFunction.Create, "File Could Not Be Downloaded From Url Due To Its File Extension {Url}", url);
-                    HttpContext.Response.StatusCode = (int)HttpStatusCode.Conflict;
-                    return file;
-                }
 
-                if (!name.IsPathOrFileValid())
+                if (HasValidFileExtension(name) && name.IsPathOrFileValid())
                 {
-                    _logger.Log(LogLevel.Error, this, LogFunction.Create, $"File Could Not Be Downloaded From Url Due To Its File Name Not Allowed {url}");
-                    HttpContext.Response.StatusCode = (int)HttpStatusCode.Conflict;
-                    return file;
-                }
-
-                try
-                {
-                    string targetPath = Path.Combine(folderPath, name);
-
-                    // remove file if it already exists
-                    if (System.IO.File.Exists(targetPath))
+                    try
                     {
-                        System.IO.File.Delete(targetPath);
-                    }
+                        string folderPath = _folders.GetFolderPath(folder);
+                        CreateDirectory(folderPath);
 
-                    using (var client = new HttpClient())
-                    {
-                        using (var stream = await client.GetStreamAsync(url))
+                        string targetPath = Path.Combine(folderPath, name);
+                        if (System.IO.File.Exists(targetPath))
                         {
-                            using (var fileStream = new FileStream(targetPath, FileMode.CreateNew))
+                            System.IO.File.Delete(targetPath);
+                        }
+
+                        using (var client = new HttpClient())
+                        {
+                            using (var stream = await client.GetStreamAsync(url))
                             {
-                                await stream.CopyToAsync(fileStream);
+                                using (var fileStream = new FileStream(targetPath, FileMode.CreateNew))
+                                {
+                                    await stream.CopyToAsync(fileStream);
+                                }
                             }
                         }
-                    }
 
-                    file = CreateFile(name, folder.FolderId, targetPath);
-                    if (file != null)
+                        file = CreateFile(name, folder.FolderId, targetPath);
+                        if (file != null)
+                        {
+                            file = _files.AddFile(file);
+                            _logger.Log(LogLevel.Information, this, LogFunction.Create, "File Downloaded {File}", file);
+                            _syncManager.AddSyncEvent(_alias, EntityNames.File, file.FileId, SyncEventActions.Create);
+                        }
+                    }
+                    catch (Exception ex)
                     {
-                        file = _files.AddFile(file);
-                        _syncManager.AddSyncEvent(_alias, EntityNames.File, file.FileId, SyncEventActions.Create);
+                        _logger.Log(LogLevel.Error, this, LogFunction.Create, ex, "File Could Not Be Downloaded From Url {Url} {Error}", url, ex.Message);
                     }
                 }
-                catch (Exception ex)
+                else
                 {
-                    _logger.Log(LogLevel.Error, this, LogFunction.Create, ex, "File Could Not Be Downloaded From Url {Url} {Error}", url, ex.Message);
+                    _logger.Log(LogLevel.Error, this, LogFunction.Security, "File Name Is Invalid Or Contains Invalid Extension {File}", name);
+                    HttpContext.Response.StatusCode = (int)HttpStatusCode.Forbidden;
+                    file = null;
                 }
             }
             else
@@ -361,29 +427,19 @@ namespace Oqtane.Controllers
         // POST api/<controller>/upload
         [EnableCors(Constants.MauiCorsPolicy)]
         [HttpPost("upload")]
-        public async Task UploadFile(string folder, IFormFile formfile)
+        public async Task<IActionResult> UploadFile(string folder, IFormFile formfile)
         {
             if (formfile == null || formfile.Length <= 0)
             {
-                return;
+                return NoContent();
             }
-
-            // Get the UploadableFiles extensions
-            string _UploadableFiles = _settingRepository.GetSetting(EntityNames.Site, _alias.SiteId, "UploadableFiles")?.SettingValue;
-            _UploadableFiles = (string.IsNullOrEmpty(_UploadableFiles)) ? Constants.UploadableFiles : _UploadableFiles;
 
             // ensure filename is valid
             string token = ".part_";
-            if (!formfile.FileName.IsPathOrFileValid() || !formfile.FileName.Contains(token))
+            if (!formfile.FileName.IsPathOrFileValid() || !formfile.FileName.Contains(token) || !HasValidFileExtension(formfile.FileName.Substring(0, formfile.FileName.IndexOf(token))))
             {
-                return;
-            }
-
-            // check for allowable file extensions (ignore token)
-            var extension = Path.GetExtension(formfile.FileName.Substring(0, formfile.FileName.IndexOf(token))).Replace(".", "");
-            if (!_UploadableFiles.Split(',').Contains(extension.ToLower()))
-            {
-                return;
+                _logger.Log(LogLevel.Error, this, LogFunction.Security, "File Name Is Invalid Or Contains Invalid Extension {File}", formfile.FileName);
+                return NoContent();
             }
 
             string folderPath = "";
@@ -428,7 +484,7 @@ namespace Oqtane.Controllers
                         {
                             file = _files.UpdateFile(file);
                         }
-                        _logger.Log(LogLevel.Information, this, LogFunction.Create, "File Upload Succeeded {File}", Path.Combine(folderPath, upload));
+                        _logger.Log(LogLevel.Information, this, LogFunction.Create, "File Uploaded {File}", Path.Combine(folderPath, upload));
                         _syncManager.AddSyncEvent(_alias, EntityNames.File, file.FileId, SyncEventActions.Create);
                     }
                 }
@@ -438,6 +494,8 @@ namespace Oqtane.Controllers
                 _logger.Log(LogLevel.Error, this, LogFunction.Security, "Unauthorized File Upload Attempt {Folder} {File}", folder, formfile.FileName);
                 HttpContext.Response.StatusCode = (int)HttpStatusCode.Forbidden;
             }
+
+            return NoContent();
         }
 
         private async Task<string> MergeFile(string folder, string filename)
@@ -459,7 +517,7 @@ namespace Oqtane.Controllers
                 bool success = true;
                 using (var stream = new FileStream(Path.Combine(folder, filename + ".tmp"), FileMode.Create))
                 {
-                    foreach (string filepart in fileparts)
+                    foreach (string filepart in fileparts.Order())
                     {
                         try
                         {
@@ -625,22 +683,18 @@ namespace Oqtane.Controllers
                     var filepath = _files.GetFilePath(file);
                     if (System.IO.File.Exists(filepath))
                     {
-                        // validation
-                        if (!Enum.TryParse(mode, true, out ResizeMode _)) mode = "crop";
-                        if (!Enum.TryParse(position, true, out AnchorPositionMode _)) position = "center";
-                        if (!Color.TryParseHex("#" + background, out _)) background = "transparent";
-                        if (!int.TryParse(rotate, out _)) rotate = "0";
-                        rotate = (int.Parse(rotate) < 0 || int.Parse(rotate) > 360) ? "0" : rotate;
                         if (!bool.TryParse(recreate, out _)) recreate = "false";
 
-                        string imagepath = filepath.Replace(Path.GetExtension(filepath), "." + width.ToString() + "x" + height.ToString() + ".png");
+                        string format = "png";
+
+                        string imagepath = filepath.Replace(Path.GetExtension(filepath), "." + width.ToString() + "x" + height.ToString() + "." + format);
                         if (!System.IO.File.Exists(imagepath) || bool.Parse(recreate))
                         {
                             // user has edit access to folder or folder supports the image size being created
                             if (_userPermissions.IsAuthorized(User, PermissionNames.Edit, file.Folder.PermissionList) ||
                               (!string.IsNullOrEmpty(file.Folder.ImageSizes) && (file.Folder.ImageSizes == "*" || file.Folder.ImageSizes.ToLower().Split(",").Contains(width.ToString() + "x" + height.ToString()))))
                             {
-                                imagepath = CreateImage(filepath, width, height, mode, position, background, rotate, imagepath);
+                                imagepath = _imageService.CreateImage(filepath, width, height, mode, position, background, rotate, format, imagepath);
                             }
                             else
                             {
@@ -687,70 +741,6 @@ namespace Oqtane.Controllers
             return System.IO.File.Exists(errorPath) ? PhysicalFile(errorPath, MimeUtilities.GetMimeType(errorPath)) : null;
         }
 
-        private string CreateImage(string filepath, int width, int height, string mode, string position, string background, string rotate, string imagepath)
-        {
-            try
-            {
-                using (var stream = new FileStream(filepath, FileMode.Open, FileAccess.Read))
-                {
-                    stream.Position = 0;
-                    using (var image = Image.Load(stream))
-                    {
-                        int.TryParse(rotate, out int angle);
-                        Enum.TryParse(mode, true, out ResizeMode resizemode);
-                        Enum.TryParse(position, true, out AnchorPositionMode anchorpositionmode);
-
-                        PngEncoder encoder;
-
-                        if (background != "transparent")
-                        {
-                            image.Mutate(x => x
-                                .AutoOrient() // auto orient the image
-                                .Rotate(angle)
-                                .Resize(new ResizeOptions
-                                {
-                                    Mode = resizemode,
-                                    Position = anchorpositionmode,
-                                    Size = new Size(width, height),
-                                    PadColor = Color.ParseHex("#" + background)
-                                }));
-
-                            encoder = new PngEncoder();
-                        }
-                        else
-                        {
-                            image.Mutate(x => x
-                                .AutoOrient() // auto orient the image
-                                .Rotate(angle)
-                                .Resize(new ResizeOptions
-                                {
-                                    Mode = resizemode,
-                                    Position = anchorpositionmode,
-                                    Size = new Size(width, height)
-                                }));
-
-                            encoder = new PngEncoder
-                            {
-                                ColorType = PngColorType.RgbWithAlpha,
-                                TransparentColorMode = PngTransparentColorMode.Preserve,
-                                BitDepth = PngBitDepth.Bit8,
-                                CompressionLevel = PngCompressionLevel.BestSpeed
-                            };
-                        }
-
-                        image.Save(imagepath, encoder);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.Log(LogLevel.Error, this, LogFunction.Security, ex, "Error Creating Image For File {FilePath} {Width} {Height} {Mode} {Rotate} {Error}", filepath, width, height, mode, rotate, ex.Message);
-                imagepath = "";
-            }
-
-            return imagepath;
-        }
-
         private string GetFolderPath(string folder)
         {
             return Utilities.PathCombine(_environment.ContentRootPath, folder);
@@ -760,7 +750,7 @@ namespace Oqtane.Controllers
         {
             if (!Directory.Exists(folderpath))
             {
-                string path = "";
+                string path = folderpath.StartsWith(Path.DirectorySeparatorChar) ? Path.DirectorySeparatorChar.ToString() : string.Empty;
                 var separators = new char[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar };
                 string[] folders = folderpath.Split(separators, StringSplitOptions.RemoveEmptyEntries);
                 foreach (string folder in folders)
@@ -838,10 +828,18 @@ namespace Oqtane.Controllers
                 {
                     _files.DeleteFile(file.FileId);
                 }
+                file = null;
                 _logger.Log(LogLevel.Warning, this, LogFunction.Create, "File Exceeds Folder Capacity And Has Been Removed {Folder} {File}", folder, filepath);
             }
 
             return file;
+        }
+
+        private bool HasValidFileExtension(string fileName)
+        {
+            var _uploadableFiles = _settingRepository.GetSetting(EntityNames.Site, _alias.SiteId, "UploadableFiles")?.SettingValue;
+            _uploadableFiles = (string.IsNullOrEmpty(_uploadableFiles)) ? Constants.UploadableFiles : _uploadableFiles;
+            return _uploadableFiles.Split(',').Contains(Path.GetExtension(fileName).ToLower().Replace(".", ""));
         }
     }
 }

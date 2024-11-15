@@ -1,24 +1,51 @@
 @namespace Oqtane.UI
 @inject SiteState SiteState
 
-@if (PageState.RenderMode == RenderModes.Interactive || ModuleState.RenderMode == RenderModes.Static)
+@if (_comment != null)
 {
-    <RenderModeBoundary ModuleState="@ModuleState" PageState="@PageState" SiteState="@SiteState" />
-}
-else
-{
-    <RenderModeBoundary ModuleState="@ModuleState" PageState="@PageState" SiteState="@SiteState" @rendermode="@InteractiveRenderMode.GetInteractiveRenderMode(PageState.Site.Runtime, PageState.Site.Prerender)" />
+    @((MarkupString)_comment)
+    @if (PageState.RenderMode == RenderModes.Interactive || ModuleState.RenderMode == RenderModes.Static)
+    {
+        <RenderModeBoundary ModuleState="@ModuleState" PageState="@PageState" SiteState="@SiteState" />
+    }
+    else
+    {
+        <RenderModeBoundary ModuleState="@ModuleState" PageState="@PageState" SiteState="@SiteState" @rendermode="InteractiveRenderMode.GetInteractiveRenderMode(PageState.Site.Runtime, _prerender)" />
+    }
 }
 
 @code {
-    // this component is on the static side of the render mode boundary
-    // it passes state as serializable parameters across the boundary 
-
     [CascadingParameter]
     protected PageState PageState { get; set; }
 
     [CascadingParameter]
     private Module ModuleState { get; set; }
+
+    private bool _prerender;
+    private string _comment;
+
+    protected override void OnParametersSet()
+    {
+        _prerender = ModuleState.Prerender ?? PageState.Site.Prerender;
+
+        _comment = "<!-- rendermode: ";
+        if (PageState.RenderMode == RenderModes.Static && ModuleState.RenderMode == RenderModes.Static)
+        {
+            _comment += RenderModes.Static;
+        }
+        else
+        {
+            _comment += $"{RenderModes.Interactive}:{PageState.Runtime} - prerender: {_prerender}";
+        }
+        _comment += " -->";
+
+        if (PageState.RenderMode == RenderModes.Static && ModuleState.RenderMode == RenderModes.Interactive)
+        {
+            // trim PageState to mitigate page bloat caused by Blazor serializing/encrypting state when crossing render mode boundaries
+            // please note that this performance optimization results in the PageState.Pages property not being available for use in Interactive components
+            PageState.Site.Pages = new List<Page>();
+        }
+    }
 
 
     [Obsolete("AddModuleMessage is deprecated. Use AddModuleMessage in ModuleBase instead.", false)]

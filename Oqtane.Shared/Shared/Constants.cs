@@ -4,8 +4,8 @@ namespace Oqtane.Shared
 {
     public class Constants
     {
-        public static readonly string Version = "5.1.1";
-        public const string ReleaseVersions = "1.0.0,1.0.1,1.0.2,1.0.3,1.0.4,2.0.0,2.0.1,2.0.2,2.1.0,2.2.0,2.3.0,2.3.1,3.0.0,3.0.1,3.0.2,3.0.3,3.1.0,3.1.1,3.1.2,3.1.3,3.1.4,3.2.0,3.2.1,3.3.0,3.3.1,3.4.0,3.4.1,3.4.2,3.4.3,4.0.0,4.0.1,4.0.2,4.0.3,4.0.4,4.0.5,4.0.6,5.0.0,5.0.1,5.0.2,5.0.3,5.1.0,5.1.1";
+        public static readonly string Version = "6.0.0";
+        public const string ReleaseVersions = "1.0.0,1.0.1,1.0.2,1.0.3,1.0.4,2.0.0,2.0.1,2.0.2,2.1.0,2.2.0,2.3.0,2.3.1,3.0.0,3.0.1,3.0.2,3.0.3,3.1.0,3.1.1,3.1.2,3.1.3,3.1.4,3.2.0,3.2.1,3.3.0,3.3.1,3.4.0,3.4.1,3.4.2,3.4.3,4.0.0,4.0.1,4.0.2,4.0.3,4.0.4,4.0.5,4.0.6,5.0.0,5.0.1,5.0.2,5.0.3,5.1.0,5.1.1,5.1.2,5.2.0,5.2.1,5.2.2,5.2.3,5.2.4,6.0.0";
         public const string PackageId = "Oqtane.Framework";
         public const string ClientId = "Oqtane.Client";
         public const string UpdaterPackageId = "Oqtane.Updater";
@@ -33,6 +33,7 @@ namespace Oqtane.Shared
         public const string PageManagementModule = "Oqtane.Modules.Admin.Pages, Oqtane.Client";
         public const string ErrorModule = "Oqtane.Modules.Admin.Error.{Action}, Oqtane.Client";
 
+        public const string AdminSiteTemplate = "Oqtane.SiteTemplates.AdminSiteTemplate, Oqtane.Server";
         public const string DefaultSiteTemplate = "Oqtane.SiteTemplates.DefaultSiteTemplate, Oqtane.Server";
 
         public static readonly string[] DefaultHostModuleTypes = new[] { "Upgrade", "Themes", "SystemInfo", "Sql", "Sites", "ModuleDefinitions", "Logs", "Jobs", "ModuleCreator" };
@@ -66,6 +67,9 @@ namespace Oqtane.Shared
         public static readonly string AntiForgeryTokenHeaderName = "X-XSRF-TOKEN-HEADER";
         public static readonly string AntiForgeryTokenCookieName = "X-XSRF-TOKEN-COOKIE";
 
+        public static readonly string SecurityStampClaimType = "AspNet.Identity.SecurityStamp";
+        public static readonly string SiteKeyClaimType = "Oqtane.Identity.SiteKey";
+
         public static readonly string DefaultVisitorFilter = "bot,crawler,slurp,spider,(none),??";
 
         public static readonly string HttpContextAliasKey = "Alias";
@@ -76,6 +80,16 @@ namespace Oqtane.Shared
         public const string MauiCorsPolicy = "MauiCorsPolicy"; // must be a constant to be used with an attribute
 
         public static readonly string VisitorCookiePrefix = "APP_VISITOR_";
+
+        public const string DefaultSearchProviderName = "DatabaseSearchProvider";
+
+        public static readonly string[] InternalPagePaths = { "login", "register", "reset", "404" };
+        public const string DefaultTextEditor = "Oqtane.Modules.Controls.QuillJSTextEditor, Oqtane.Client";
+
+        public const string BootstrapScriptUrl = "https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js";
+        public const string BootstrapScriptIntegrity = "sha512-7Pi/otdlbbCR+LnW+F7PwFcSDJOuUJB3OxtEHbg4vSMvzvJjde4Po1v4BR9Gdc9aXNUNFVUY+SK51wWT8WF0Gg==";
+        public const string BootstrapStylesheetUrl = "https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css";
+        public const string BootstrapStylesheetIntegrity = "sha512-jnSuA4Ss2PkkikSOLtYs8BlYIeeIK1h99ty4YfvRPAlzr377vr3CXDb7sb7eEEBYjDtcYj+AjBH3FLv5uSJuXg==";
 
         // Obsolete constants
 

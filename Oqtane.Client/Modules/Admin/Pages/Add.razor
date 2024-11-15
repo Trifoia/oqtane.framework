@@ -26,7 +26,7 @@
                             <div class="col-sm-9">
                                 <select id="parent" class="form-select" value="@_parentid" @onchange="(e => ParentChanged(e))" required>
                                     <option value="-1">&lt;@Localizer["SiteRoot"]&gt;</option>
-                                    @foreach (Page page in PageState.Pages)
+                                    @foreach (Page page in _pages)
                                     {
                                         if (UserSecurity.IsAuthorized(PageState.User, PermissionNames.View, page.PermissionList))
                                         {
@@ -156,7 +156,14 @@
                                 <select id="theme" class="form-select" value="@_themetype" @onchange="(e => ThemeChanged(e))" required>
                                     @foreach (var theme in _themes)
                                     {
-                                        <option value="@theme.TypeName">@theme.Name</option>
+                                        @if (theme.TypeName == PageState.Site.DefaultThemeType)
+                                        {
+                                            <option value="@theme.TypeName">*@theme.Name*</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@theme.TypeName">@theme.Name</option>
+                                        }
                                     }
                                 </select>
                             </div>
@@ -198,12 +205,6 @@
                     </div>
                 </div>
             </TabPanel>
-            @if (_themeSettingsType != null)
-            {
-                <TabPanel Name="ThemeSettings" Heading=@Localizer["Theme.Heading"] ResourceKey="ThemeSettings">
-                    @_themeSettingsComponent
-                </TabPanel>
-            }
         </TabStrip>
         <br />
         <button type="button" class="btn btn-success" @onclick="SavePage">@SharedLocalizer["Save"]</button>
@@ -219,6 +220,7 @@
     private bool validated = false;
     private List<ThemeControl> _themes = new List<ThemeControl>();
     private List<ThemeControl> _containers = new List<ThemeControl>();
+    private List<Page> _pages;
     private int _pageId;
     private string _name;
     private string _parentid = "-1";
@@ -238,9 +240,6 @@
     private string _bodycontent;
     private string _permissions = null;
     private PermissionGrid _permissionGrid;
-    private Type _themeSettingsType;
-    private object _themeSettings;
-    private RenderFragment _themeSettingsComponent { get; set; }
     private bool _refresh = false;
     protected Page _parent = null;
     protected Dictionary<string, string> _icons;
@@ -252,6 +251,8 @@
     {
         try
         {
+            _pages = await PageService.GetPagesAsync(PageState.Site.SiteId);
+
             if (PageState.QueryString.ContainsKey("id"))
             {
                 _pageId = Int32.Parse(PageState.QueryString["id"]);
@@ -272,7 +273,7 @@
                 _containers = ThemeService.GetContainerControls(PageState.Site.Themes, _themetype);
                 _containertype = PageState.Site.DefaultContainerType;
                 _children = new List<Page>();
-                foreach (Page p in PageState.Pages.Where(item => (_parentid == "-1" && item.ParentId == null) || (item.ParentId == int.Parse(_parentid))))
+                foreach (Page p in _pages.Where(item => (_parentid == "-1" && item.ParentId == null) || (item.ParentId == int.Parse(_parentid))))
                 {
                     if (UserSecurity.IsAuthorized(PageState.User, PermissionNames.View, p.PermissionList))
                     {
@@ -281,7 +282,6 @@
                 }
                 _effectivedate = Utilities.UtcAsLocalDate(PageState.Page.EffectiveDate);
                 _expirydate = Utilities.UtcAsLocalDate(PageState.Page.ExpiryDate);
-                ThemeSettings();
                 _initialized = true;
             }
             else
@@ -303,7 +303,7 @@
         {
             _parentid = (string)e.Value;
             _children = new List<Page>();
-            foreach (Page p in PageState.Pages.Where(item => (_parentid == "-1" && item.ParentId == null) || (item.ParentId == int.Parse(_parentid))))
+            foreach (Page p in _pages.Where(item => (_parentid == "-1" && item.ParentId == null) || (item.ParentId == int.Parse(_parentid))))
             {
                 if (UserSecurity.IsAuthorized(PageState.User, PermissionNames.View, p.PermissionList))
                 {
@@ -324,35 +324,12 @@
         _themetype = (string)e.Value;
         _containers = ThemeService.GetContainerControls(PageState.Site.Themes, _themetype);
         _containertype = _containers.First().TypeName;
-        ThemeSettings();
         StateHasChanged();
 
         // if theme chosen is different than default site theme, display warning message to user
         if (ThemeService.GetTheme(PageState.Site.Themes, _themetype)?.ThemeName != ThemeService.GetTheme(PageState.Site.Themes, PageState.Site.DefaultThemeType)?.ThemeName)
         {
             AddModuleMessage(Localizer["ThemeChanged.Message"], MessageType.Warning);
-        }
-    }
-
-    private void ThemeSettings()
-    {
-        _themeSettingsType = null;
-        _themeSettingsComponent = null;
-        var theme = PageState.Site.Themes.FirstOrDefault(item => item.Themes.Any(themecontrol => themecontrol.TypeName.Equals(_themetype)));
-        if (theme != null && !string.IsNullOrEmpty(theme.ThemeSettingsType))
-        {
-            _themeSettingsType = Type.GetType(theme.ThemeSettingsType);
-            if (_themeSettingsType != null)
-            {
-                _themeSettingsComponent = builder =>
-                {
-                    builder.OpenComponent(0, _themeSettingsType);
-                    builder.AddAttribute(1, "RenderModeBoundary", RenderModeBoundary);
-                    builder.AddComponentReferenceCapture(2, inst => { _themeSettings = Convert.ChangeType(inst, _themeSettingsType); });
-                    builder.CloseComponent();
-                };
-            }
-            _refresh = true;
         }
     }
 
@@ -404,7 +381,7 @@
                     }
                     else
                     {
-                        Page parent = PageState.Pages.FirstOrDefault(item => item.PageId == page.ParentId);
+                        Page parent = _pages.FirstOrDefault(item => item.PageId == page.ParentId);
                         if (parent.Path == string.Empty)
                         {
                             page.Path = Utilities.GetFriendlyUrl(parent.Name) + "/" + Utilities.GetFriendlyUrl(_path);
@@ -415,7 +392,6 @@
                         }
                     }
 
-                    var _pages = await PageService.GetPagesAsync(PageState.Site.SiteId);
                     if (_pages.Any(item => item.Path == page.Path))
                     {
                         AddModuleMessage(string.Format(Localizer["Message.Page.Exists"], _path), MessageType.Warning);
@@ -435,11 +411,11 @@
                             page.Order = 0;
                             break;
                         case "<":
-                            child = PageState.Pages.Where(item => item.PageId == _childid).FirstOrDefault();
+                            child = _pages.Where(item => item.PageId == _childid).FirstOrDefault();
                             page.Order = child.Order - 1;
                             break;
                         case ">":
-                            child = PageState.Pages.Where(item => item.PageId == _childid).FirstOrDefault();
+                            child = _pages.Where(item => item.PageId == _childid).FirstOrDefault();
                             page.Order = child.Order + 1;
                             break;
                         case ">>":
@@ -482,11 +458,11 @@
                     await logger.LogInformation("Page Added {Page}", page);
                     if (!string.IsNullOrEmpty(PageState.ReturnUrl))
                     {
-                        NavigationManager.NavigateTo(PageState.ReturnUrl, true);
+                        NavigationManager.NavigateTo(NavigateUrl(page.Path), true); // redirect to page added and reload
                     }
                     else
                     {
-                        NavigationManager.NavigateTo(page.Path); // redirect to new page created
+                        NavigationManager.NavigateTo(NavigateUrl()); // redirect to page management
                     }
                 }
                 else

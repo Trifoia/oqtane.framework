@@ -19,8 +19,10 @@ using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
 using Oqtane.Infrastructure;
 using Oqtane.Infrastructure.Interfaces;
+using Oqtane.Interfaces;
 using Oqtane.Managers;
 using Oqtane.Modules;
+using Oqtane.Providers;
 using Oqtane.Repository;
 using Oqtane.Security;
 using Oqtane.Services;
@@ -97,14 +99,25 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddScoped<IUrlMappingService, UrlMappingService>();
             services.AddScoped<IVisitorService, VisitorService>();
             services.AddScoped<ISyncService, SyncService>();
+            services.AddScoped<ISearchResultsService, SearchResultsService>();
+            services.AddScoped<ISearchService, SearchService>();
+            services.AddScoped<ISearchProvider, DatabaseSearchProvider>();
+            services.AddScoped<IImageService, ImageService>();
+
+            // providers
+            services.AddScoped<ITextEditor, Oqtane.Modules.Controls.QuillJSTextEditor>();
+            services.AddScoped<ITextEditor, Oqtane.Modules.Controls.TextAreaTextEditor>();
 
             return services;
         }
 
         internal static IServiceCollection AddOqtaneTransientServices(this IServiceCollection services)
         {
-            // repositories
+            // services
             services.AddTransient<ISiteService, ServerSiteService>();
+            services.AddTransient<ILocalizationCookieService, ServerLocalizationCookieService>();
+
+            // repositories
             services.AddTransient<IModuleDefinitionRepository, ModuleDefinitionRepository>();
             services.AddTransient<IThemeRepository, ThemeRepository>();
             services.AddTransient<IAliasRepository, AliasRepository>();
@@ -120,7 +133,6 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddTransient<IPermissionRepository, PermissionRepository>();
             services.AddTransient<ISettingRepository, SettingRepository>();
             services.AddTransient<ILogRepository, LogRepository>();
-            services.AddTransient<ILocalizationManager, LocalizationManager>();
             services.AddTransient<IJobRepository, JobRepository>();
             services.AddTransient<IJobLogRepository, JobLogRepository>();
             services.AddTransient<INotificationRepository, NotificationRepository>();
@@ -131,6 +143,7 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddTransient<ILanguageRepository, LanguageRepository>();
             services.AddTransient<IVisitorRepository, VisitorRepository>();
             services.AddTransient<IUrlMappingRepository, UrlMappingRepository>();
+            services.AddTransient<ISearchContentRepository, SearchContentRepository>();
 
             // managers
             services.AddTransient<IDBContextDependencies, DBContextDependencies>();
@@ -142,11 +155,11 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddTransient<ILogManager, LogManager>();
             services.AddTransient<IUpgradeManager, UpgradeManager>();
             services.AddTransient<IUserManager, UserManager>();
-
-            // obsolete - replaced by ITenantManager
-            services.AddTransient<ITenantResolver, TenantResolver>();
-
+            services.AddTransient<ILocalizationManager, LocalizationManager>();
             services.AddTransient<ITokenReplace, TokenReplace>();
+
+            // obsolete
+            services.AddTransient<ITenantResolver, TenantResolver>(); // replaced by ITenantManager
 
             return services;
         }
@@ -159,6 +172,7 @@ namespace Microsoft.Extensions.DependencyInjection
                 options.Cookie.HttpOnly = true;
                 options.Cookie.SameSite = SameSiteMode.Lax;
                 options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+                options.LoginPath = "/login"; // overrides .NET Identity default of /Account/Login
                 options.Events.OnRedirectToLogin = context =>
                 {
                     context.Response.StatusCode = (int)HttpStatusCode.Forbidden;
