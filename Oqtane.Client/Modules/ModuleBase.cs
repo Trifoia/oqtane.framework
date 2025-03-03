@@ -18,6 +18,7 @@ namespace Oqtane.Modules
         private Logger _logger;
         private string _urlparametersstate;
         private Dictionary<string, string> _urlparameters;
+        private bool _scriptsloaded = false;
 
         protected Logger logger => _logger ?? (_logger = new Logger(this));
 
@@ -103,12 +104,12 @@ namespace Oqtane.Modules
                             if (!string.IsNullOrEmpty(resource.Url))
                             {
                                 var url = (resource.Url.Contains("://")) ? resource.Url : PageState.Alias.BaseUrl + resource.Url;
-                                scripts.Add(new { href = url, bundle = resource.Bundle ?? "", integrity = resource.Integrity ?? "", crossorigin = resource.CrossOrigin ?? "", es6module = resource.ES6Module, location = resource.Location.ToString().ToLower() });
+                                scripts.Add(new { href = url, type = resource.Type ?? "", bundle = resource.Bundle ?? "", integrity = resource.Integrity ?? "", crossorigin = resource.CrossOrigin ?? "", location = resource.Location.ToString().ToLower(), dataAttributes = resource.DataAttributes });
                             }
                             else
                             {
                                 inline += 1;
-                                await interop.IncludeScript(GetType().Namespace.ToLower() + inline.ToString(), "", "", "", resource.Content, resource.Location.ToString().ToLower());
+                                await interop.IncludeScript(GetType().Namespace.ToLower() + inline.ToString(), "", "", "", resource.Type ?? "", resource.Content, resource.Location.ToString().ToLower());
                             }
                         }
                     }
@@ -117,6 +118,7 @@ namespace Oqtane.Modules
                         await interop.IncludeScripts(scripts.ToArray());
                     }
                 }
+                _scriptsloaded = true;
             }
         }
 
@@ -125,11 +127,28 @@ namespace Oqtane.Modules
             return PageState?.RenderId == ModuleState?.RenderId;
         }
 
+        public bool ScriptsLoaded
+        {
+            get
+            {
+                return _scriptsloaded;
+            }
+        }
+
         // path method
 
         public string ModulePath()
         {
             return PageState?.Alias.BaseUrl + "/Modules/" + GetType().Namespace + "/";
+        }
+
+        // fingerprint hash code for static assets
+        public string Fingerprint
+        {
+            get
+            {
+                return ModuleState.ModuleDefinition.Fingerprint;
+            }
         }
 
         // url methods

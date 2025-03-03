@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Oqtane.Shared;
 
 namespace Oqtane.Models
@@ -11,7 +12,7 @@ namespace Oqtane.Models
         private string _url;
 
         /// <summary>
-        /// A <see cref="ResourceType"/> so the Interop can properly create `script` or `link` tags
+        /// A <see cref="ResourceType"/> to define the type of resource ie. Script or Stylesheet
         /// </summary>
         public ResourceType ResourceType { get; set; }
 
@@ -28,6 +29,11 @@ namespace Oqtane.Models
         }
 
         /// <summary>
+        /// For Scripts this allows type to be specified - not applicable to Stylesheets
+        /// </summary>
+        public string Type { get; set; }
+
+        /// <summary>
         /// Integrity checks to increase the security of resources accessed. Especially common in CDN resources. 
         /// </summary>
         public string Integrity { get; set; }
@@ -38,7 +44,7 @@ namespace Oqtane.Models
         public string CrossOrigin { get; set; }
 
         /// <summary>
-        /// For Scripts a Bundle can be used to identify dependencies and ordering in the script loading process
+        /// For Scripts a Bundle can be used to identify dependencies and ordering in the script loading process (for Interactive rendering only)
         /// </summary>
         public string Bundle { get; set; }
 
@@ -53,12 +59,7 @@ namespace Oqtane.Models
         public ResourceLocation Location { get; set; }
 
         /// <summary>
-        /// For Scripts this allows type="module" registrations - not applicable to Stylesheets
-        /// </summary>
-        public bool ES6Module { get; set; }
-
-        /// <summary>
-        /// Allows specification of inline script - not applicable to Stylesheets
+        /// For Scripts this allows for the specification of inline script - not applicable to Stylesheets
         /// </summary>
         public string Content { get; set; }
 
@@ -68,34 +69,89 @@ namespace Oqtane.Models
         public string RenderMode { get; set; }
 
         /// <summary>
-        /// Indicates that a script should be reloaded on every page transition - not applicable to Stylesheets
+        /// Specifies how a script should be loaded in Static rendering - not applicable to Stylesheets
         /// </summary>
-        public bool Reload { get; set; }
+        public ResourceLoadBehavior LoadBehavior { get; set; }
+
+        /// <summary>
+        /// Cusotm data-* attributes for scripts - not applicable to Stylesheets
+        /// </summary>
+        public Dictionary<string, string> DataAttributes { get; set; }
 
         /// <summary>
         /// The namespace of the component that declared the resource - only used in SiteRouter
         /// </summary>
         public string Namespace { get; set; }
 
-        public Resource Clone(ResourceLevel level, string name)
+        /// <summary>
+        /// Unique identifier of the version of the theme or module that declared the resource - for cache busting - only used in SiteRouter
+        /// </summary>
+        public string Fingerprint
+        {
+            set
+            {
+                // add the fingerprint to the url if it does not contain a querystring already
+                if (!string.IsNullOrEmpty(value) && !string.IsNullOrEmpty(Url) && !Url.Contains("?"))
+                {
+                    Url += "?v=" + value;
+                }
+            }
+        }
+
+        public Resource Clone(ResourceLevel level, string name, string fingerprint)
         {
             var resource = new Resource();
             resource.ResourceType = ResourceType;
             resource.Url = Url;
+            resource.Type = Type;
             resource.Integrity = Integrity;
             resource.CrossOrigin = CrossOrigin;
             resource.Bundle = Bundle;
             resource.Location = Location;
-            resource.ES6Module = ES6Module;
             resource.Content = Content;
             resource.RenderMode = RenderMode;
-            resource.Reload = Reload;
+            resource.LoadBehavior = LoadBehavior;
+            resource.DataAttributes = new Dictionary<string, string>();
+            if (DataAttributes != null && DataAttributes.Count > 0)
+            {
+                foreach (var kvp in DataAttributes)
+                {
+                    resource.DataAttributes.Add(kvp.Key, kvp.Value);
+                }
+            }
             resource.Level = level;
             resource.Namespace = name;
+            resource.Fingerprint = fingerprint;
             return resource;
         }
 
         [Obsolete("ResourceDeclaration is deprecated", false)]
         public ResourceDeclaration Declaration { get; set; }
+
+        [Obsolete("ES6Module is deprecated. Use Type property instead for scripts.", false)]
+        public bool ES6Module
+        {
+            get => (Type == "module");
+            set
+            {
+                if (value)
+                {
+                    Type = "module";
+                };
+            }
+        }
+
+        [Obsolete("Reload is deprecated. Use LoadBehavior property instead for scripts.", false)]
+        public bool Reload
+        {
+            get => (LoadBehavior == ResourceLoadBehavior.BlazorPageScript);
+            set
+            {
+                if (value)
+                {
+                    LoadBehavior = ResourceLoadBehavior.BlazorPageScript;
+                };
+            }
+        }
     }
 }

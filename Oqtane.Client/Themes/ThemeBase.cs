@@ -15,6 +15,8 @@ namespace Oqtane.Themes
 {
     public abstract class ThemeBase : ComponentBase, IThemeControl
     {
+        private bool _scriptsloaded = false;
+
         [Inject]
         protected ILogService LoggingService { get; set; }
 
@@ -67,12 +69,12 @@ namespace Oqtane.Themes
                             if (!string.IsNullOrEmpty(resource.Url))
                             {
                                 var url = (resource.Url.Contains("://")) ? resource.Url : PageState.Alias.BaseUrl + resource.Url;
-                                scripts.Add(new { href = url, bundle = resource.Bundle ?? "", integrity = resource.Integrity ?? "", crossorigin = resource.CrossOrigin ?? "", es6module = resource.ES6Module, location = resource.Location.ToString().ToLower() });
+                                scripts.Add(new { href = url, type = resource.Type ?? "", bundle = resource.Bundle ?? "", integrity = resource.Integrity ?? "", crossorigin = resource.CrossOrigin ?? "", location = resource.Location.ToString().ToLower(), dataAttributes = resource.DataAttributes });
                             }
                             else
                             {
                                 inline += 1;
-                                await interop.IncludeScript(GetType().Namespace.ToLower() + inline.ToString(), "", "", "", resource.Content, resource.Location.ToString().ToLower());
+                                await interop.IncludeScript(GetType().Namespace.ToLower() + inline.ToString(), "", "", "", resource.Type ?? "", resource.Content, resource.Location.ToString().ToLower());
                             }
                         }
                     }
@@ -82,6 +84,25 @@ namespace Oqtane.Themes
                     }
                 }
             }
+            _scriptsloaded = true;
+        }
+
+        public bool ScriptsLoaded
+        {
+            get
+            {
+                return _scriptsloaded;
+            }
+        }
+
+        // property for obtaining theme information about this theme component
+        public Theme ThemeState
+        {
+            get
+            {
+                var type = GetType().Namespace + ", " + GetType().Assembly.GetName().Name;
+                return PageState?.Site.Themes.FirstOrDefault(item => item.ThemeName == type);
+            }
         }
 
         // path method
@@ -89,6 +110,15 @@ namespace Oqtane.Themes
         public string ThemePath()
         {
             return PageState?.Alias.BaseUrl + "/Themes/" + GetType().Namespace + "/";
+        }
+
+        // fingerprint hash code for static assets
+        public string Fingerprint
+        {
+            get
+            {
+                return ThemeState.Fingerprint;
+            }
         }
 
         // url methods

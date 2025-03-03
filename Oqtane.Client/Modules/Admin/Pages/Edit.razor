@@ -116,7 +116,7 @@
                             </div>
                         </div>
                         <div class="row mb-1 align-items-center">
-                            <Label Class="col-sm-3" For="path" HelpText="Optionally enter a url path for this page (ie. home ). If you do not provide a url path, the page name will be used. If the page is intended to be the root path specify '/'." ResourceKey="UrlPath">Url Path: </Label>
+                            <Label Class="col-sm-3" For="path" HelpText="Optionally enter a url path for this page (ie. home ). If you do not provide a url path, the page name will be used. Please note that spaces and punctuation will be replaced by a dash. If the page is intended to be the root path specify '/'." ResourceKey="UrlPath">Url Path: </Label>
                             <div class="col-sm-9">
                                 <input id="path" class="form-control" @bind="@_path" maxlength="256" />
                             </div>
@@ -261,6 +261,12 @@
                             <Label Class="col-sm-3" For="title" HelpText="Optionally enter the page title. If you do not provide a page title, the page name will be used." ResourceKey="Title">Title: </Label>
                             <div class="col-sm-9">
                                 <input id="title" class="form-control" @bind="@_title" maxlength="200" />
+                            </div>
+                        </div>
+                        <div class="row mb-1 align-items-center">
+                            <Label Class="col-sm-3" For="path" HelpText="Provide a url path for your personalized page. Please note that spaces and punctuation will be replaced by a dash." ResourceKey="PersonalizedUrlPath">Url Path: </Label>
+                            <div class="col-sm-9">
+                                <input id="path" class="form-control" @bind="@_path" maxlength="256" />
                             </div>
                         </div>
                         <div class="row mb-1 align-items-center">
@@ -466,7 +472,7 @@
             _parentid = (string)e.Value;
             _children = new List<Page>();
             foreach (Page p in _pages.Where(item => (_parentid == "-1" && item.ParentId == null) || (item.ParentId == int.Parse(_parentid))))
-        {
+            {
                 if (p.PageId != _pageId && UserSecurity.IsAuthorized(PageState.User, PermissionNames.View, p.PermissionList))
                 {
                     _children.Add(p);
@@ -479,10 +485,11 @@
         {
             await logger.LogError(ex, "Error Loading Child Pages For Parent {PageId} {Error}", _parentid, ex.Message);
             AddModuleMessage(Localizer["Error.ChildPage.Load"], MessageType.Error);
+            await ScrollToPageTop();
         }
     }
 
-    private void ThemeChanged(ChangeEventArgs e)
+    private async Task ThemeChanged(ChangeEventArgs e)
     {
         _themetype = (string)e.Value;
         _containers = ThemeService.GetContainerControls(PageState.Site.Themes, _themetype);
@@ -494,6 +501,7 @@
         if (ThemeService.GetTheme(PageState.Site.Themes, _themetype)?.ThemeName != ThemeService.GetTheme(PageState.Site.Themes, PageState.Site.DefaultThemeType)?.ThemeName)
         {
             AddModuleMessage(Localizer["ThemeChanged.Message"], MessageType.Warning);
+            await ScrollToPageTop();
         }
     }
 
@@ -531,6 +539,7 @@
                 if (!Utilities.ValidateEffectiveExpiryDates(_effectivedate, _expirydate))
                 {
                     AddModuleMessage(SharedLocalizer["Message.EffectiveExpiryDateError"], MessageType.Warning);
+                    await ScrollToPageTop();
                     return;
                 }
                 if (!string.IsNullOrEmpty(_themetype) && _containertype != "-")
@@ -581,12 +590,14 @@
                     if (_pages.Any(item => item.Path == _page.Path && item.PageId != _page.PageId))
                     {
                         AddModuleMessage(string.Format(Localizer["Mesage.Page.PathExists"], _path), MessageType.Warning);
+                        await ScrollToPageTop();
                         return;
                     }
 
                     if (_page.ParentId == null && Constants.ReservedRoutes.Contains(_page.Name.ToLower()))
                     {
                         AddModuleMessage(string.Format(Localizer["Message.Page.Reserved"], _page.Name), MessageType.Warning);
+                        await ScrollToPageTop();
                         return;
                     }
 
@@ -671,17 +682,20 @@
                 else
                 {
                     AddModuleMessage(Localizer["Message.Required.PageInfo"], MessageType.Warning);
+                    await ScrollToPageTop();
                 }
             }
             catch (Exception ex)
             {
                 await logger.LogError(ex, "Error Saving Page {Page} {Error}", _page, ex.Message);
                 AddModuleMessage(Localizer["Error.Page.Save"], MessageType.Error);
+                await ScrollToPageTop();
             }
         }
         else
         {
             AddModuleMessage(SharedLocalizer["Message.InfoRequired"], MessageType.Warning);
+            await ScrollToPageTop();
         }
     }
 

@@ -12,6 +12,7 @@ using Oqtane.Enums;
 using Oqtane.Infrastructure;
 using Oqtane.Models;
 using Oqtane.Repository;
+using Oqtane.Security;
 using Oqtane.Shared;
 
 namespace Oqtane.Managers
@@ -339,20 +340,20 @@ namespace Oqtane.Managers
                     user = _users.GetUser(user.Username);
                     if (!user.IsDeleted)
                     {
-                        if (user.TwoFactorRequired)
+                        var alias = _tenantManager.GetAlias();
+                        var twoFactorSetting = _settings.GetSetting(EntityNames.Site, alias.SiteId, "LoginOptions:TwoFactor")?.SettingValue ?? "false";
+                        var twoFactorRequired = twoFactorSetting == "required" || user.TwoFactorRequired;
+                        if (twoFactorRequired)
                         {
                             var token = await _identityUserManager.GenerateTwoFactorTokenAsync(identityuser, "Email");
                             user.TwoFactorCode = token;
                             user.TwoFactorExpiry = DateTime.UtcNow.AddMinutes(10);
                             _users.UpdateUser(user);
-                            var alias = _tenantManager.GetAlias();
-                            string url = alias.Protocol + alias.Name;
                             string siteName = _sites.GetSite(alias.SiteId).Name;
                             string subject = _localizer["TwoFactorEmailSubject"];
                             subject = subject.Replace("[SiteName]", siteName);
                             string body = _localizer["TwoFactorEmailBody"].Value;
                             body = body.Replace("[UserDisplayName]", user.DisplayName);
-                            body = body.Replace("[URL]", url);
                             body = body.Replace("[SiteName]", siteName);
                             body = body.Replace("[Token]", token);
                             var notification = new Notification(alias.SiteId, user, subject, body);
@@ -363,26 +364,36 @@ namespace Oqtane.Managers
                         }
                         else
                         {
-                            user = _users.GetUser(identityuser.UserName);
-                            if (user != null)
+                            if (await _identityUserManager.IsEmailConfirmedAsync(identityuser))
                             {
-                                if (await _identityUserManager.IsEmailConfirmedAsync(identityuser))
+                                user = GetUser(identityuser.UserName, alias.SiteId);
+                                if (user != null)
                                 {
-                                    user.IsAuthenticated = true;
-                                    user.LastLoginOn = DateTime.UtcNow;
-                                    user.LastIPAddress = LastIPAddress;
-                                    _users.UpdateUser(user);
-                                    _logger.Log(LogLevel.Information, this, LogFunction.Security, "User Login Successful For {Username} From IP Address {IPAddress}", user.Username, LastIPAddress);
-
-                                    if (setCookie)
+                                    // ensure user is registered for site
+                                    if (UserSecurity.ContainsRole(user.Roles, RoleNames.Registered))
                                     {
-                                        await _identitySignInManager.SignInAsync(identityuser, isPersistent);
+                                        user.IsAuthenticated = true;
+                                        user.LastLoginOn = DateTime.UtcNow;
+                                        user.LastIPAddress = LastIPAddress;
+                                        _users.UpdateUser(user);
+                                        _logger.Log(LogLevel.Information, this, LogFunction.Security, "User Login Successful For {Username} From IP Address {IPAddress}", user.Username, LastIPAddress);
+
+                                        _syncManager.AddSyncEvent(alias, EntityNames.User, user.UserId, "Login");
+
+                                        if (setCookie)
+                                        {
+                                            await _identitySignInManager.SignInAsync(identityuser, isPersistent);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        _logger.Log(LogLevel.Information, this, LogFunction.Security, "User {Username} Is Not An Active Member Of Site {SiteId}", user.Username, alias.SiteId);
                                     }
                                 }
-                                else
-                                {
-                                    _logger.Log(LogLevel.Information, this, LogFunction.Security, "User Email Address Not Verified {Username}", user.Username);
-                                }
+                            }
+                            else
+                            {
+                                _logger.Log(LogLevel.Information, this, LogFunction.Security, "User Email Address Not Verified {Username}", user.Username);
                             }
                         }
                     }
@@ -488,6 +499,9 @@ namespace Oqtane.Managers
                 var result = await _identityUserManager.ResetPasswordAsync(identityuser, token, user.Password);
                 if (result.Succeeded)
                 {
+                    user = _users.GetUser(user.Username);
+                    _syncManager.AddSyncEvent(_tenantManager.GetAlias(), EntityNames.User, user.UserId, SyncEventActions.Update);
+                    _syncManager.AddSyncEvent(_tenantManager.GetAlias(), EntityNames.User, user.UserId, SyncEventActions.Reload);
                     _logger.Log(LogLevel.Information, this, LogFunction.Security, "Password Reset For {Username}", user.Username);
                     user.Password = "";
                 }
@@ -510,7 +524,10 @@ namespace Oqtane.Managers
             user = _users.GetUser(user.Username);
             if (user != null)
             {
-                if (user.TwoFactorRequired && user.TwoFactorCode == token && DateTime.UtcNow < user.TwoFactorExpiry)
+                var alias = _tenantManager.GetAlias();
+                var twoFactorSetting = _settings.GetSetting(EntityNames.Site, alias.SiteId, "LoginOptions:TwoFactor")?.SettingValue ?? "false";
+                var twoFactorRequired = twoFactorSetting == "required" || user.TwoFactorRequired;
+                if (twoFactorRequired && user.TwoFactorCode == token && DateTime.UtcNow < user.TwoFactorExpiry)
                 {
                     user.IsAuthenticated = true;
                 }
